@@ -1,0 +1,120 @@
+# Websocket Driver
+
+This library provides a complete implementation of the WebSocket protocols.
+
+## Usage
+
+### Server-side with Clack
+
+```common-lisp
+(ql:quickload '(:websocket-driver :clack))
+
+(use-package :websocket-driver)
+
+(defvar *echo-server*
+  (lambda (env)
+    (let ((ws (make-server env)))
+      (on :message ws
+          (lambda (ev)
+            (send ws (event-data ev))))
+      (lambda (responder)
+        (declare (ignore responder))
+        (start-connection ws)))))
+
+(clack:clackup *echo-server* :server :wookie :port 5000)
+```
+
+### Server-side with Wookie
+
+```common-lisp
+(ql:quickload '(:websocket-driver :wookie))
+
+(use-package '(:wookie :websocket-driver))
+
+(defroute (:get "/echo" :chunk nil) (req res)
+  (declare (ignore res))
+  (let ((ws (make-server req :type :wookie)))
+    (on :message ws
+        (lambda (event)
+          (send ws (event-data event))))
+    (start-connection ws)))
+
+(as:with-event-loop ()
+  (start-server (make-instance 'listener :port 5000)))
+```
+
+### Client-side
+
+```common-lisp
+(defvar *client* (wsd:make-client "ws://localhost:5000/echo"))
+```
+
+## Driver API
+
+#### `(on :open driver callback)`
+
+Sets the `CALLBACK` function to execute when the socket becomes open.
+
+#### `(on :message driver callback)`
+
+Sets the `CALLBACK` to execute when a message is received. The `CALLBACK` function takes a `MESSAGE-EVENT` as an argument which has an accessor `EVENT-DATA` to get the data that is either a string in the case of a text message or an `(UNSIGNED-BYTE 8)` vector in the case of a binary message.
+
+#### `(on :error driver callback)`
+
+Sets the `CALLBACK` to execute when a protocol error occurs due to the other peer sending an invalid byte sequence. The `CALLBACK` function takes a `PROTOCOL-ERROR` as an argument.
+
+#### `(on :close driver callback)`
+
+Sets the `CALLBACK` to execute when the socket becomes closed. The `CALLBACK` function takes a `CLOSE-EVENT` as an argument which has accessors `EVENT-CODE` and `EVENT-REASON`.
+
+#### `(start-connection driver)`
+
+Initiates the protocol by sending the handshake - either the response for a server-side driver or the request for a client-side one. This should be the first method you invoke. Returns `T` if a handshake was sent.
+
+#### `(parse driver data)`
+
+Takes `DATA` and parses it, potentially resulting in message events being emitted (see `(on :message ...)` above). You should send all data you receive via I/O to this method.
+
+#### `(send driver data &key type code)`
+
+Sends `DATA` over the socket.
+
+#### `(send-text driver string)`
+
+Sends a text message over the socket.
+
+#### `(send-binary driver usb8-vector)`
+
+Takes an `(UNSIGNED-BYTE 8)` vector and sends them as a binary message.
+
+#### `(send-ping driver &optional message callback)`
+
+Sends a ping frame over the socket, queueing it if necessary.
+
+#### `(close-connection driver)`
+
+Initiates the closing handshake if the socket is still open.
+
+#### `(version driver)`
+
+Returns the WebSocket version in use as a string.
+
+#### `(protocol driver)`
+
+Returns a string containing the selected subprotocol, if any was agreed upon using the `Sec-WebSocket-Protocol` mechanism.
+
+## Author
+
+* Eitaro Fukamachi (e.arrows@gmail.com)
+
+## Copyright
+
+Copyright (c) 2014 Eitaro Fukamachi (e.arrows@gmail.com)
+
+## License
+
+Licensed under the BSD 2-Clause License.
+
+## See Also
+
+* [Event Emitter](https://github.com/fukamachi/event-emitter)
