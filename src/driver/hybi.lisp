@@ -135,6 +135,18 @@
           callback))
   (send driver message :type :ping))
 
+(defmethod close-connection ((driver hybi) &optional (reason "") (code (error-code :normal-closure)))
+  (case (ready-state driver)
+    (:connecting
+     (setf (ready-state driver) :closed)
+     (emit :close driver (make-close-event :code code :reason reason))
+     T)
+    (:open
+     (send driver reason :type :close :code code)
+     (setf (ready-state driver) :closing)
+     T)
+    (otherwise nil)))
+
 (defun mask-message (data mask-keys)
   (check-type data (vector (unsigned-byte 8)))
   (let ((len (length data))
