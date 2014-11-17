@@ -70,9 +70,10 @@
 @export
 (defun websocket-p (env &key (type :clack))
   (flet ((clack-websocket-p (env)
-           (and (eq (getf env :request-method) :get)
-                (ppcre:scan "(?i)(?:^|\\s|,)upgrade(?:$|\\s|,)" (or (getf env :http-connection) ""))
-                (string-equal (getf env :http-upgrade) "websocket")))
+           (let ((headers (getf env :headers)))
+             (and (eq (getf env :request-method) :get)
+                  (ppcre:scan "(?i)(?:^|\\s|,)upgrade(?:$|\\s|,)" (gethash "connection" headers ""))
+                  (string-equal (gethash "upgrade" headers) "websocket"))))
          (wookie-websocket-p (req)
            (with-package-functions :wookie (request-method
                                             request-headers)

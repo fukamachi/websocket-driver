@@ -107,8 +107,8 @@
 (defmethod initialize-instance :after ((driver hybi) &key)
   (when (slot-boundp driver 'env)
     (let ((protocols (protocols driver))
-          (env-protocols (getf (env driver)
-                               :http-sec-websocket-protocol)))
+          (env-protocols (gethash "sec-websocket-protocol"
+                                  (getf (env driver) :headers))))
       (when (stringp env-protocols)
         (setq env-protocols (ppcre:split "\\s*,\\s*" env-protocols)))
       (setf (protocol driver)
@@ -118,8 +118,8 @@
 
 (defmethod version ((driver hybi))
   (format nil "hybi-~A"
-          (getf (env driver)
-                :http-sec-websocket-version)))
+          (gethash "sec-websocket-version"
+                   (getf (env driver) :headers))))
 
 (defmethod send-text ((driver hybi) message)
   (send driver message :type :text))
@@ -232,8 +232,8 @@
                               (concatenate 'string key +guid+)))))
 
 (defmethod handshake-response ((driver hybi))
-  (let ((sec-key (getf (env driver)
-                       :http-sec-websocket-key)))
+  (let ((sec-key (gethash "sec-websocket-key"
+                          (getf (env driver) :headers))))
     (unless (stringp sec-key)
       (return-from handshake-response
         (make-array 0 :element-type '(unsigned-byte 8))))
