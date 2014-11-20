@@ -24,6 +24,7 @@
                :ironclad
                :event-emitter
                :cl-async
+               :cl-async-future
                :iolib
                :bordeaux-threads
                :alexandria
