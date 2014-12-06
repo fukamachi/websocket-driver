@@ -48,6 +48,9 @@
                                     :sec-websocket-key
                                     :sec-websocket-version
                                     :upgrade))
+                    :headers (let ((table (make-hash-table :test #'equal)))
+                               (alexandria:doplist (k v headers table)
+                                 (setf (gethash (string-downcase k) table) v)))
                     :request-method (request-method req))))
       (apply #'make-server-for-clack
              env
