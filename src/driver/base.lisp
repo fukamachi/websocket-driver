@@ -186,14 +186,7 @@
   (let ((socket (socket driver)))
     (etypecase socket
       (as:socket
-       (as:delay
-        (lambda ()
-          (let* ((bev-data (as::deref-data-from-pointer (as::socket-c socket)))
-                 (socket-data-pointer (getf bev-data :data-pointer)))
-            (as::save-callbacks socket-data-pointer
-                                (list :read-cb (lambda (socket data)
-                                                 (declare (ignore socket))
-                                                 (funcall callback data))))))))
+       (setf (getf (as:socket-data socket) :parser) callback))
       (iolib:socket
        (iolib:set-io-handler (event-base driver)
                              (iolib:socket-os-fd socket)
