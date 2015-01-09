@@ -328,7 +328,9 @@
                   (setq length-size (if (= length 126) 2 8))
                   (setf (stage driver) 2))))
              (parse-extended-length (buffer)
-               (setq length (length buffer))
+               (setq length (aref buffer 0))
+               (loop for i from 1 below (length buffer)
+                     do (setq length (+ (ash length 8) (aref buffer i))))
 
                (unless (or (find opcode *fragmented-opcodes* :test #'=)
                            (<= length 125))
