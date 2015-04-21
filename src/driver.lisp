@@ -41,16 +41,14 @@
            (env #.`(list
                     ,@(mapcan (lambda (name)
                                 (list (intern (format nil "HTTP-~A" name) :keyword)
-                                      `(getf headers ,name)))
-                              (list :connection
-                                    :host
-                                    :origin
-                                    :sec-websocket-key
-                                    :sec-websocket-version
-                                    :upgrade))
-                    :headers (let ((table (make-hash-table :test #'equal)))
-                               (alexandria:doplist (k v headers table)
-                                 (setf (gethash (string-downcase k) table) v)))
+                                      `(gethash ,name headers)))
+                              (list "connection"
+                                    "host"
+                                    "origin"
+                                    "sec-websocket-key"
+                                    "sec-websocket-version"
+                                    "upgrade"))
+                    :headers (alexandria:copy-hash-table headers)
                     :request-method (request-method req))))
       (apply #'make-server-for-clack
              env
@@ -84,8 +82,8 @@
                (return-from websocket-p nil))
 
              (let* ((headers (request-headers req))
-                    (connection (getf headers :connection))
-                    (upgrade (getf headers :upgrade)))
+                    (connection (gethash "connection" headers))
+                    (upgrade (gethash "upgrade" headers)))
                (and connection
                     upgrade
                     (ppcre:scan "(?i)(?:^|\\s|,)upgrade(?:$|\\s|,)" connection)
