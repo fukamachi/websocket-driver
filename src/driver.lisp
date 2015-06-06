@@ -48,7 +48,7 @@
                                     "sec-websocket-key"
                                     "sec-websocket-version"
                                     "upgrade"))
-                    :headers (alexandria:copy-hash-table headers)
+                    :headers headers
                     :request-method (request-method req))))
       (apply #'make-server-for-clack
              env
