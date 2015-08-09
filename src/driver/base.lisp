@@ -103,8 +103,8 @@
     (let ((socket (socket driver))
           (future (asf:make-future)))
       (set-read-callback driver
-                         (lambda (data)
-                           (parse driver data)))
+                         (lambda (data &key (start 0) end)
+                           (parse driver (subseq data start end))))
 
       (write-to-socket socket
                        (handshake-response driver)
@@ -202,4 +202,6 @@
                                                   (iolib:receive-from socket :size buffer-size)
                                                 (fast-write-sequence data buffer 0 bytes-read)
                                                 (when (< bytes-read buffer-size)
-                                                  (setq endp t)))))))))))))
+                                                  (setq endp t))))))))))
+      (wev:socket
+       (setf (wev:socket-data socket) callback)))))

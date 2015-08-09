@@ -26,6 +26,7 @@
                :cl-async
                :cl-async-future
                :iolib
+               :woo
                :bordeaux-threads
                :alexandria
                :cl-syntax-annot
