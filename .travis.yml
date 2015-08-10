@@ -21,20 +21,21 @@ addons:
 
 install:
   # libuv for Wookie
-  - curl -L https://github.com/libuv/libuv/archive/v1.6.1.tar.gz | tar xzf -
-  - (cd libuv-1.6.1 && ./autogen.sh && ./configure --prefix=$HOME/libuv && make && make install)
+  - if ! [ -f "$HOME/libuv/include/uv.h" ]; then ./t/install-libuv.sh; fi
   # libfixposix for IOLib
-  - curl -L https://github.com/sionescu/libfixposix/archive/v0.3.0.tar.gz | tar xzf -
-  - (cd libfixposix-0.3.0 && autoreconf -i -f)
-  - (cd libfixposix-0.3.0 && mkdir build/ && cd build/ && ../configure --prefix=$HOME/libfixposix && make && make install)
+  - if ! [ -f "$HOME/libfixposix/include/lfp.h" ]; then ./t/install-libfixposix.sh; fi
   # Install Roswell
-  - curl -L https://raw.githubusercontent.com/snmsts/roswell/$ROSWELL_BRANCH/scripts/install-for-ci.sh | sh
+  - if ! $(which ros >/dev/null); then
+      curl -L https://raw.githubusercontent.com/snmsts/roswell/$ROSWELL_BRANCH/scripts/install-for-ci.sh | sh;
+    fi
   - npm install ws
   - git clone -b clack-socket https://github.com/fukamachi/clack ~/lisp/clack
 
 cache:
   directories:
     - $HOME/.roswell
+    - $HOME/libfixposix
+    - $HOME/libuv
 
 script:
   - ./run-tests.sh
