@@ -149,7 +149,9 @@
     (setf (ready-state driver) :open)
 
     (map nil (lambda (message)
-             (apply #'send driver message))
+               (destructuring-bind (message type code)
+                   message
+                 (send driver message :type type :code code)))
          (queue driver))
 
     (setf (queue driver)
@@ -170,5 +172,6 @@
 (defgeneric handshake-request (driver))
 
 @export
-(defun set-read-callback (driver callback)
-  (clack.socket:set-read-callback (socket driver) callback))
+(defgeneric set-read-callback (driver callback)
+  (:method ((driver driver) callback)
+    (clack.socket:set-read-callback (socket driver) callback)))

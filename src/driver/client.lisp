@@ -30,7 +30,11 @@
                 :make-socket
                 :connect
                 :lookup-hostname
-                :event-dispatch)
+                :event-dispatch
+                :set-io-handler
+                :socket-os-fd
+                :send-to
+                :receive-from)
   (:import-from :bordeaux-threads
                 :make-thread
                 :*default-special-bindings*)
@@ -271,3 +275,27 @@
 
       (fast-write-sequence #.(string-to-octets (format nil "~C~C" #\Return #\Linefeed))
                            buffer))))
+
+(defmethod set-read-callback ((driver client) callback)
+  (let ((socket (socket driver)))
+    (iolib:set-io-handler
+     (event-base driver)
+     (iolib:socket-os-fd socket)
+     :read
+     (lambda (fd event exception)
+       (declare (ignore fd event exception))
+       (let ((buffer-size 1024)
+             (endp nil))
+         (funcall callback
+                  (with-fast-output (buffer :vector)
+                    (do () (endp)
+                      (multiple-value-bind (data bytes-read)
+                          (iolib:receive-from socket :size buffer-size)
+                        (fast-write-sequence data buffer 0 bytes-read)
+                        (when (< bytes-read buffer-size)
+                          (setq endp t)))))))))))
+
+(defmethod clack.socket:write-to-socket ((socket iolib:socket) message &key callback)
+  (iolib:send-to socket message)
+  (when callback
+    (funcall callback)))
