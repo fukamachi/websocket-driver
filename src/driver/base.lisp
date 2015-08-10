@@ -14,12 +14,6 @@
                 :make-future
                 :finish
                 :attach)
-  (:import-from :iolib
-                :set-io-handler
-                :socket-os-fd
-                :receive-from)
-  (:import-from :iomux
-                :event-base)
   (:import-from :fast-io
                 :with-fast-output
                 :fast-write-sequence)
@@ -56,9 +50,7 @@
              :initform nil
              :accessor protocol)
    (ready-state :type fixnum
-                :initform 0)
-   (event-base :initform (make-instance 'iomux:event-base :exit-when-empty t)
-               :accessor event-base)))
+                :initform 0)))
 
 @export
 (defgeneric ready-state (driver)

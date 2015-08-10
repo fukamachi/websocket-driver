@@ -25,8 +25,6 @@
                :clack-socket
                :event-emitter
                :cl-async-future
-               :iolib
-               :bordeaux-threads
                :alexandria
                :cl-syntax-annot
                :cl-reexport)
@@ -41,8 +39,7 @@
                   :depends-on ("events" "socket" "header" "error" "util")
                   :components
                   ((:file "base")
-                   (:file "hybi" :depends-on ("base"))
-                   (:file "client" :depends-on ("base" "hybi"))))
+                   (:file "hybi" :depends-on ("base"))))
                  (:file "events")
                  (:file "error")
                  (:file "socket" :depends-on ("util"))

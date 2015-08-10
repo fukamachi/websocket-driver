@@ -5,8 +5,6 @@
         :cl-reexport)
   (:import-from :websocket-driver.driver.hybi
                 :hybi)
-  (:import-from :websocket-driver.driver.client
-                :client)
   (:import-from :websocket-driver.util
                 :with-package-functions)
   (:import-from :alexandria
@@ -14,14 +12,6 @@
 (in-package :websocket-driver)
 
 (syntax:use-syntax :annot)
-
-@export
-(defun make-client (url &optional protocols &rest options)
-  (apply #'make-instance 'client
-         :url url
-         :masking t
-         :protocols protocols
-         options))
 
 @export
 (defun make-server-for-clack (env &rest options &key socket &allow-other-keys)

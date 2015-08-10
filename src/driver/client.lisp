@@ -79,7 +79,9 @@
                :initform 0
                :accessor http-stage)
    (ready-state :type fixnum
-                :initform -1)))
+                :initform -1)
+   (event-base :initform (make-instance 'iomux:event-base :exit-when-empty t)
+               :accessor event-base)))
 
 (defmethod initialize-instance :after ((driver client) &key)
   (setf (url driver) (quri:uri (url driver)))
