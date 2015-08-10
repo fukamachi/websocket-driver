@@ -1,6 +1,6 @@
 #!/bin/sh
 
-ros -l examples/echo-server.lisp &
+ros -l websocket-driver.asd -l examples/echo-server.lisp &
 SERVER_PID=$!
 
 while true; do
