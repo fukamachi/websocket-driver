@@ -20,9 +20,8 @@
                 :make-output-buffer
                 :output-buffer-len
                 :finish-output-buffer)
-  (:import-from :cl-async-future
-                :make-future
-                :finish)
+  (:import-from :blackbird
+                :with-promise)
   (:import-from :ironclad
                 :digest-sequence
                 :ascii-string-to-byte-array)
@@ -216,13 +215,11 @@
                              :collect key)))
                  (setq data (mask-message data mask-keys))))
 
-             (fast-write-sequence data frame)))
-         (future (asf:make-future)))
-    (write-to-socket (socket driver) frame
-                     :callback
-                     (lambda ()
-                       (asf:finish future)))
-    future))
+             (fast-write-sequence data frame))))
+    (bb:with-promise (resolve reject)
+      (write-to-socket (socket driver) frame
+                       :callback
+                       (lambda () (resolve))))))
 
 @export
 (defun generate-accept (key)

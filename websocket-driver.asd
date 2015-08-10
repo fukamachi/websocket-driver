@@ -24,7 +24,7 @@
                :ironclad
                :clack-socket
                :event-emitter
-               :cl-async-future
+               :blackbird
                :alexandria
                :cl-syntax-annot
                :cl-reexport)

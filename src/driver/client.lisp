@@ -23,9 +23,8 @@
                 :make-output-buffer
                 :finish-output-buffer
                 :output-buffer-len)
-  (:import-from :cl-async-future
-                :make-future
-                :finish)
+  (:import-from :blackbird
+                :with-promise)
   (:import-from :iolib
                 :make-socket
                 :connect
@@ -123,12 +122,11 @@
      (lambda ()
        (iolib:event-dispatch (event-base driver)))))
 
-  (let ((future (asf:make-future)))
+  (bb:with-promise (resolve reject)
     (write-to-socket (socket driver)
                      (handshake-request driver)
                      :callback
-                     (lambda () (asf:finish future)))
-    future))
+                     (lambda () (resolve)))))
 
 (defmethod parse ((driver client) data)
   (let ((ready-state (ready-state driver)))

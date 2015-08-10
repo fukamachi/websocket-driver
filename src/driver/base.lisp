@@ -10,10 +10,8 @@
                 :write-header)
   (:import-from :websocket-driver.socket
                 :write-to-socket)
-  (:import-from :cl-async-future
-                :make-future
-                :finish
-                :attach)
+  (:import-from :blackbird
+                :with-promise)
   (:import-from :fast-io
                 :with-fast-output
                 :fast-write-sequence)
@@ -88,23 +86,19 @@
     (unless (eq (ready-state driver) :connecting)
       (return-from start-connection))
 
-    (let ((socket (socket driver))
-          (future (asf:make-future)))
+    (let ((socket (socket driver)))
       (set-read-callback driver
                          (lambda (data &key (start 0) end)
                            (parse driver (subseq data start end))))
 
-      (write-to-socket socket
-                       (handshake-response driver)
-                       :callback
-                       (lambda () (asf:finish future)))
-
-      (asf:attach future
-                  (lambda ()
-                    (unless (= (stage driver) -1)
-                      (open-connection driver))))
-
-      future)))
+      (bb:with-promise (resolve reject)
+        (write-to-socket socket
+                         (handshake-response driver)
+                         :callback
+                         (lambda ()
+                           (unless (= (stage driver) -1)
+                             (open-connection driver))
+                           (resolve)))))))
 
 @export
 (defgeneric version (driver))
