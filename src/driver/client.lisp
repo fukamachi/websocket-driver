@@ -10,8 +10,6 @@
                 :generate-accept
                 :protocols
                 :buffer)
-  (:import-from :websocket-driver.uri
-                :parse-uri)
   (:import-from :websocket-driver.header
                 :finalize-headers)
   (:import-from :websocket-driver.socket
@@ -84,8 +82,7 @@
                 :initform -1)))
 
 (defmethod initialize-instance :after ((driver client) &key)
-  (unless (typep (url driver) 'puri:uri)
-    (setf (url driver) (parse-uri (url driver))))
+  (setf (url driver) (quri:uri (url driver)))
 
   (setf (accept driver) (generate-accept (key driver))))
 
@@ -105,8 +102,8 @@
                                    :ipv6 nil))
         (uri (url driver)))
     (iolib:connect socket
-                   (iolib:lookup-hostname (puri:uri-host uri))
-                   :port (puri:uri-port uri)
+                   (iolib:lookup-hostname (quri:uri-host uri))
+                   :port (quri:uri-port uri)
                    :wait t)
     (setf (socket driver) socket))
 
@@ -232,15 +229,15 @@
     (with-fast-output (buffer :vector)
       (fast-write-sequence
        (string-to-octets (format nil "GET ~:[/~;~:*~A~]~:[~;~:*?~A~] HTTP/1.1~C~C"
-                                 (puri:uri-path uri)
-                                 (puri:uri-query uri)
+                                 (quri:uri-path uri)
+                                 (quri:uri-query uri)
                                  #\Return #\Linefeed)
                          :encoding :utf-8)
        buffer)
       (fast-write-sequence
        (string-to-octets (format nil "Host: ~A~:[~;~:*:~D~]~C~C"
-                                 (puri:uri-host uri)
-                                 (puri:uri-port uri)
+                                 (quri:uri-host uri)
+                                 (quri:uri-port uri)
                                  #\Return #\Linefeed)
                          :encoding :utf-8)
        buffer)

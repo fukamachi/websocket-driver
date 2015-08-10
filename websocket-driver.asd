@@ -18,7 +18,7 @@
   :license "BSD 2-Clause"
   :depends-on (:fast-io
                :babel
-               :puri
+               :quri
                :cl-base64
                :cl-ppcre
                :ironclad
@@ -37,7 +37,7 @@
                                               "util"))
                  (:module "driver-components"
                   :pathname "driver"
-                  :depends-on ("events" "socket" "uri" "header" "error" "util")
+                  :depends-on ("events" "socket" "header" "error" "util")
                   :components
                   ((:file "base")
                    (:file "hybi" :depends-on ("base"))
@@ -46,6 +46,5 @@
                  (:file "error")
                  (:file "socket" :depends-on ("util"))
                  (:file "header")
-                 (:file "uri")
                  (:file "util"))))
   :description "WebSocket protocol handler")
