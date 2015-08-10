@@ -1,5 +1,8 @@
 # Websocket Driver
 
+[![Build Status](https://travis-ci.org/fukamachi/websocket-driver.svg?branch=master)](https://travis-ci.org/fukamachi/websocket-driver)
+[![Quicklisp dist](http://quickdocs.org/badge/websocket-driver.svg)](http://quickdocs.org/websocket-driver/)
+
 This library provides a complete implementation of the WebSocket protocols.
 
 ## Usage
