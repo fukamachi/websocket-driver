@@ -1,5 +1,6 @@
 (in-package :cl-user)
 (defpackage websocket-driver-client
+  (:nicknames :wsdc)
   (:use :cl)
   (:import-from :websocket-driver.driver.client
                 :client)

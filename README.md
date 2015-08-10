@@ -49,7 +49,9 @@ This library provides a complete implementation of the WebSocket protocols.
 ### Client-side
 
 ```common-lisp
-(defvar *client* (wsd:make-client "ws://localhost:5000/echo"))
+(ql:quickload :websocket-driver-client)
+
+(defvar *client* (wsdc:make-client "ws://localhost:5000/echo"))
 ```
 
 ## Driver API
