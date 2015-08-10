@@ -31,5 +31,9 @@ install:
   - curl -L https://raw.githubusercontent.com/snmsts/roswell/$ROSWELL_BRANCH/scripts/install-for-ci.sh | sh
   - npm install ws
 
+cache:
+  directories:
+    - $HOME/.roswell
+
 script:
   - ./run-tests.sh
