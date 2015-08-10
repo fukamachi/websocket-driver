@@ -3,17 +3,13 @@
   (:use :cl
         :annot.class
         :event-emitter
-        :websocket-driver.events)
+        :websocket-driver.events
+        :websocket-driver.util)
   (:import-from :websocket-driver.header
                 :make-headers
                 :write-header)
   (:import-from :websocket-driver.socket
                 :write-to-socket)
-  (:import-from :cl-async
-                :delay
-                :deref-data-from-pointer
-                :socket-c
-                :save-callbacks)
   (:import-from :cl-async-future
                 :make-future
                 :finish
@@ -183,25 +179,31 @@
 
 @export
 (defun set-read-callback (driver callback)
-  (let ((socket (socket driver)))
-    (etypecase socket
-      (as:socket
-       (setf (getf (as:socket-data socket) :parser) callback))
-      (iolib:socket
-       (iolib:set-io-handler (event-base driver)
-                             (iolib:socket-os-fd socket)
-                             :read
-                             (lambda (fd event exception)
-                               (declare (ignore fd event exception))
-                               (let ((buffer-size 1024)
-                                     (endp nil))
-                                 (funcall callback
-                                          (with-fast-output (buffer :vector)
-                                            (do () (endp)
-                                              (multiple-value-bind (data bytes-read)
-                                                  (iolib:receive-from socket :size buffer-size)
-                                                (fast-write-sequence data buffer 0 bytes-read)
-                                                (when (< bytes-read buffer-size)
-                                                  (setq endp t))))))))))
-      (wev:socket
-       (setf (wev:socket-data socket) callback)))))
+  (let* ((socket (socket driver))
+         (socket-package
+           (package-name (symbol-package (type-of socket)))))
+    (cond
+      ((string= socket-package #.(string :cl-async))
+       (with-package-functions :as (socket-data (setf socket-data))
+         (setf (getf (socket-data socket) :parser) callback)))
+      ((string= socket-package #.(string :iolib.sockets))
+       (with-package-functions :iolib (set-io-handler socket-os-fd recieve-from)
+         (set-io-handler
+          (event-base driver)
+          (socket-os-fd socket)
+          :read
+          (lambda (fd event exception)
+            (declare (ignore fd event exception))
+            (let ((buffer-size 1024)
+                  (endp nil))
+              (funcall callback
+                       (with-fast-output (buffer :vector)
+                         (do () (endp)
+                           (multiple-value-bind (data bytes-read)
+                               (receive-from socket :size buffer-size)
+                             (fast-write-sequence data buffer 0 bytes-read)
+                             (when (< bytes-read buffer-size)
+                               (setq endp t)))))))))))
+      ((string= socket-package #.(string :woo.ev.socket))
+       (with-package-functions :wev ((setf socket-data))
+         (setf (socket-data socket) callback))))))

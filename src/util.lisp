@@ -5,14 +5,12 @@
 (in-package :websocket-driver.util)
 
 (defmacro with-package-functions (package-designator functions &body body)
-  (let ((args (gensym "ARGS"))
-        (g-pkg (gensym "PACKAGE")))
-    `(let ((,g-pkg ,package-designator))
-       (flet (,@(loop for fn in functions
-                      collect `(,fn (&rest ,args)
-                                    (apply
-                                     ,(if (and (listp fn) (eq (car fn) 'setf))
-                                          `(eval `(function (setf ,(intern ,(string (cadr fn)) ,g-pkg))))
-                                          `(symbol-function (intern ,(string fn) ,g-pkg)))
-                                     ,args))))
-         ,@body))))
+  (let ((args (gensym "ARGS")))
+    `(flet (,@(loop for fn in functions
+                    collect `(,fn (&rest ,args)
+                                  (apply
+                                   ,(if (and (listp fn) (eq (car fn) 'setf))
+                                        `(eval `(function (setf ,(intern ,(string (cadr fn)) ,package-designator))))
+                                        `(symbol-function (intern ,(string fn) ,package-designator)))
+                                   ,args))))
+       ,@body)))
