@@ -22,4 +22,4 @@ install:
   - npm install ws
 
 script:
-  - run-tests.sh
+  - ./run-tests.sh
