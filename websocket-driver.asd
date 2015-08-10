@@ -22,6 +22,7 @@
                :cl-base64
                :cl-ppcre
                :ironclad
+               :clack-socket
                :event-emitter
                :cl-async-future
                :iolib

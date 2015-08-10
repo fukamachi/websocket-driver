@@ -179,31 +179,4 @@
 
 @export
 (defun set-read-callback (driver callback)
-  (let* ((socket (socket driver))
-         (socket-package
-           (package-name (symbol-package (type-of socket)))))
-    (cond
-      ((string= socket-package #.(string :cl-async))
-       (with-package-functions :as (socket-data (setf socket-data))
-         (setf (getf (socket-data socket) :parser) callback)))
-      ((string= socket-package #.(string :iolib.sockets))
-       (with-package-functions :iolib (set-io-handler socket-os-fd recieve-from)
-         (set-io-handler
-          (event-base driver)
-          (socket-os-fd socket)
-          :read
-          (lambda (fd event exception)
-            (declare (ignore fd event exception))
-            (let ((buffer-size 1024)
-                  (endp nil))
-              (funcall callback
-                       (with-fast-output (buffer :vector)
-                         (do () (endp)
-                           (multiple-value-bind (data bytes-read)
-                               (receive-from socket :size buffer-size)
-                             (fast-write-sequence data buffer 0 bytes-read)
-                             (when (< bytes-read buffer-size)
-                               (setq endp t)))))))))))
-      ((string= socket-package #.(string :woo.ev.socket))
-       (with-package-functions :wev ((setf socket-data))
-         (setf (socket-data socket) callback))))))
+  (clack.socket:set-read-callback (socket driver) callback))
