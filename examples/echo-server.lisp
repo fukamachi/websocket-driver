@@ -39,4 +39,4 @@
 "))))))
 
 (defvar *handler*
-  (clack:clackup *app* :server :wookie))
+  (clack:clackup *app* :server :wookie :use-thread nil))
