@@ -1,4 +1,4 @@
-(ql:quickload '(:websocket-driver :clack))
+(ql:quickload '(:websocket-driver :clack) :silent t)
 
 (in-package :cl-user)
 (defpackage websocket-test

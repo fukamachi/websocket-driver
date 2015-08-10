@@ -40,3 +40,4 @@ cache:
 
 script:
   - ./run-tests.sh
+  - ./run-client-tests.sh

@@ -3,6 +3,7 @@ var WebSocket = require('ws'),
 
 var _output = '';
 ws.on('message', function(message) {
+    console.error('received: %s', message);
     _output = _output + message;
 });
 var getOutput = function() {
@@ -14,18 +15,19 @@ var getOutput = function() {
 ws.on('open', function() {
     ws.send('Hi');
     setTimeout(function() {
-        if (getOutput() === 'Hi') {
+        var output = getOutput();
+        if (output === 'Hi') {
             console.log('ok');
             process.exit();
         }
         else {
-            console.log('ng');
+            console.log('ng: "%s"', output);
             process.exit(1);
         }
     }, 300);
 });
 
 setTimeout(function() {
-    console.log('Timeout.');
+    console.error('Timeout.');
     process.exit(1);
 }, 3000);
