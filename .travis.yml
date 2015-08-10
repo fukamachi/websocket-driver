@@ -8,7 +8,7 @@ env:
     - LD_LIBRARY_PATH=$HOME/libuv/lib:$HOME/libfixposix/lib:$LD_LIBRARY_PATH
     - C_INCLUDE_PATH=$HOME/libuv/include:$HOME/libfixposix/include:$C_INCLUDE_PATH
     - CPLUS_INCLUDE_PATH=$C_INCLUDE_PATH
-    - ROSWELL_BRANCH=master
+    - ROSWELL_BRANCH=release
     - ROSWELL_INSTALL_DIR=$HOME/.roswell
   matrix:
     - LISP=sbcl-bin
