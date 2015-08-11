@@ -31,14 +31,13 @@
                :cl-reexport)
   :components ((:module "src"
                 :components
-                ((:file "driver" :depends-on ("driver-components" "util"))
+                ((:file "driver" :depends-on ("driver-components"))
                  (:module "driver-components"
                   :pathname "driver"
-                  :depends-on ("socket" "header" "util")
+                  :depends-on ("socket" "header")
                   :components
                   ((:file "base")
                    (:file "hybi" :depends-on ("base"))))
-                 (:file "socket" :depends-on ("util"))
-                 (:file "header")
-                 (:file "util"))))
+                 (:file "socket")
+                 (:file "header"))))
   :description "WebSocket protocol handler")

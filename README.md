@@ -27,25 +27,6 @@ This library provides a complete implementation of the WebSocket protocols.
 (clack:clackup *echo-server* :server :wookie :port 5000)
 ```
 
-### Server-side with Wookie
-
-```common-lisp
-(ql:quickload '(:websocket-driver :wookie))
-
-(use-package '(:wookie :websocket-driver))
-
-(defroute (:get "/echo" :chunk nil) (req res)
-  (declare (ignore res))
-  (let ((ws (make-server req :type :wookie)))
-    (on :message ws
-        (lambda (message)
-          (send ws message)))
-    (start-connection ws)))
-
-(as:with-event-loop ()
-  (start-server (make-instance 'listener :port 5000)))
-```
-
 ## Driver API
 
 #### `(on :open driver callback)`

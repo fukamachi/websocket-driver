@@ -2,8 +2,7 @@
 (defpackage websocket-driver.driver.base
   (:use :cl
         :annot.class
-        :event-emitter
-        :websocket-driver.util)
+        :event-emitter)
   (:import-from :websocket-driver.header
                 :make-headers
                 :write-header)
