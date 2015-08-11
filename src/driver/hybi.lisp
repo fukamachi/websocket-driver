@@ -133,19 +133,6 @@
      T)
     (otherwise nil)))
 
-(defun mask-message (data mask-keys)
-  (check-type data (vector (unsigned-byte 8)))
-  (let ((len (length data))
-        (last (last mask-keys)))
-    (rplacd last mask-keys)
-    (do ((i 0 (1+ i))
-         (next-mask mask-keys (cdr next-mask)))
-        ((= len i)
-         (rplacd last nil)
-         data)
-      (setf (aref data i)
-            (logxor (aref data i) (car next-mask))))))
-
 (defmethod send ((driver hybi) data &key type code)
   (when (eq (ready-state driver) :connecting)
     (return-from send
