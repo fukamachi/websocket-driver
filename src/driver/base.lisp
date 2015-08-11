@@ -3,7 +3,6 @@
   (:use :cl
         :annot.class
         :event-emitter
-        :websocket-driver.events
         :websocket-driver.util)
   (:import-from :websocket-driver.header
                 :make-headers
@@ -134,7 +133,7 @@
       (return-from close-connection))
 
     (setf (ready-state driver) :closed)
-    (emit :close driver (make-close-event :code nil :reason nil))
+    (emit :close driver :code nil :reason nil)
     t))
 
 @export
@@ -151,7 +150,7 @@
     (setf (queue driver)
           (make-array 0 :adjustable t :fill-pointer 0))
 
-    (emit :open driver (make-open-event))))
+    (emit :open driver)))
 
 @export
 (defgeneric enqueue (driver message)

@@ -3,8 +3,7 @@
   (:use :cl
         :annot.class
         :event-emitter
-        :websocket-driver.driver.base
-        :websocket-driver.events)
+        :websocket-driver.driver.base)
   (:import-from :websocket-driver.header
                 :finalize-headers)
   (:import-from :websocket-driver.socket
@@ -76,9 +75,7 @@
            :max-length (max-length driver)
            :message-callback
            (lambda (message)
-             (emit :message
-                   driver
-                   (make-message-event :data message)))
+             (emit :message driver message))
            :pong-callback
            (lambda (payload)
              (let ((callback (gethash payload (ping-callbacks driver))))
@@ -100,7 +97,7 @@
              (send driver reason :type :close :code code)
              (setf (ready-state driver) :closed)
              (setf (stage driver) 5)
-             (emit :close driver (make-close-event :code code :reason reason)))))))
+             (emit :close driver :code code :reason reason))))))
 
 (defmethod version ((driver hybi))
   (format nil "hybi-~A"
@@ -125,7 +122,7 @@
   (case (ready-state driver)
     (:connecting
      (setf (ready-state driver) :closed)
-     (emit :close driver (make-close-event :code code :reason reason))
+     (emit :close driver :code code :reason reason)
      T)
     (:open
      (send driver reason :type :close :code code)

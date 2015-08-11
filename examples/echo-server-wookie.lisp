@@ -32,8 +32,8 @@
   (declare (ignore res))
   (let ((ws (make-server req nil :type :wookie)))
     (on :message ws
-        (lambda (event)
-          (send ws (event-data event))))
+        (lambda (message)
+          (send ws message)))
     (start-connection ws)))
 
 (as:with-event-loop ()

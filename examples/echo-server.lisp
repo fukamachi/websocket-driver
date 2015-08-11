@@ -12,8 +12,8 @@
       ((string= "/echo" (getf env :request-uri))
        (let ((ws (make-server env)))
          (on :message ws
-             (lambda (event)
-               (send ws (event-data event))))
+             (lambda (message)
+               (send ws message)))
          (lambda (responder)
            (declare (ignore responder))
            (start-connection ws))))

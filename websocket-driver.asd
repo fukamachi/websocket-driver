@@ -31,16 +31,13 @@
                :cl-reexport)
   :components ((:module "src"
                 :components
-                ((:file "driver" :depends-on ("driver-components"
-                                              "events"
-                                              "util"))
+                ((:file "driver" :depends-on ("driver-components" "util"))
                  (:module "driver-components"
                   :pathname "driver"
-                  :depends-on ("events" "socket" "header" "util")
+                  :depends-on ("socket" "header" "util")
                   :components
                   ((:file "base")
                    (:file "hybi" :depends-on ("base"))))
-                 (:file "events")
                  (:file "socket" :depends-on ("util"))
                  (:file "header")
                  (:file "util"))))

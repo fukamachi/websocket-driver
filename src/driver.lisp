@@ -106,13 +106,3 @@
                           :remove-listener
                           :remove-all-listeners
                           :emit))
-
-(reexport-from :websocket-driver.events
-               :include '(:event
-                          :connect-event
-                          :open-event
-                          :message-event
-                          :event-data
-                          :close-event
-                          :event-code
-                          :event-reason))

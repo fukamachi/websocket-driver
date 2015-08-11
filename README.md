@@ -18,8 +18,8 @@ This library provides a complete implementation of the WebSocket protocols.
   (lambda (env)
     (let ((ws (make-server env)))
       (on :message ws
-          (lambda (ev)
-            (send ws (event-data ev))))
+          (lambda (message)
+            (send ws message)))
       (lambda (responder)
         (declare (ignore responder))
         (start-connection ws)))))
@@ -38,8 +38,8 @@ This library provides a complete implementation of the WebSocket protocols.
   (declare (ignore res))
   (let ((ws (make-server req :type :wookie)))
     (on :message ws
-        (lambda (event)
-          (send ws (event-data event))))
+        (lambda (message)
+          (send ws message)))
     (start-connection ws)))
 
 (as:with-event-loop ()
@@ -54,7 +54,7 @@ Sets the `CALLBACK` function to execute when the socket becomes open.
 
 #### `(on :message driver callback)`
 
-Sets the `CALLBACK` to execute when a message is received. The `CALLBACK` function takes a `MESSAGE-EVENT` as an argument which has an accessor `EVENT-DATA` to get the data that is either a string in the case of a text message or an `(UNSIGNED-BYTE 8)` vector in the case of a binary message.
+Sets the `CALLBACK` to execute when a message is received. The `CALLBACK` function takes a `MESSAGE` as an argument which is either a string in the case of a text message or an `(UNSIGNED-BYTE 8)` vector in the case of a binary message.
 
 #### `(on :error driver callback)`
 
@@ -62,7 +62,7 @@ Sets the `CALLBACK` to execute when a protocol error occurs due to the other pee
 
 #### `(on :close driver callback)`
 
-Sets the `CALLBACK` to execute when the socket becomes closed. The `CALLBACK` function takes a `CLOSE-EVENT` as an argument which has accessors `EVENT-CODE` and `EVENT-REASON`.
+Sets the `CALLBACK` to execute when the socket becomes closed. The `CALLBACK` function takes `CODE` and `REASON` as arguments.
 
 #### `(start-connection driver)`
 
