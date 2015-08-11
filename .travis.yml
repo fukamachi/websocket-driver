@@ -37,6 +37,7 @@ cache:
     - $HOME/.roswell
     - $HOME/libfixposix
     - $HOME/libuv
+    - $HOME/.config/common-lisp
 
 script:
   - ./run-tests.sh
