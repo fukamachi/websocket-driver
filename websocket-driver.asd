@@ -16,7 +16,8 @@
   :version "0.0.1"
   :author "Eitaro Fukamachi"
   :license "BSD 2-Clause"
-  :depends-on (:fast-io
+  :depends-on (:fast-websocket
+               :fast-io
                :babel
                :quri
                :cl-base64

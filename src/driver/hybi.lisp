@@ -10,16 +10,15 @@
                 :finalize-headers)
   (:import-from :websocket-driver.socket
                 :write-to-socket)
+  (:import-from :fast-websocket
+                :make-ws
+                :ws-mask
+                :ws-stage
+                :make-parser
+                :compose-frame)
   (:import-from :fast-io
                 :with-fast-output
-                :with-fast-input
-                :fast-write-byte
-                :fast-write-sequence
-                :fast-read-byte
-                :fast-read-sequence
-                :make-output-buffer
-                :output-buffer-len
-                :finish-output-buffer)
+                :fast-write-sequence)
   (:import-from :blackbird
                 :with-promise)
   (:import-from :ironclad
@@ -28,59 +27,17 @@
   (:import-from :base64
                 :usb8-array-to-base64-string)
   (:import-from :babel
-                :string-to-octets
-                :octets-to-string
-                :character-decoding-error)
+                :string-to-octets)
   (:import-from :alexandria
                 :define-constant
-                :when-let
-                :plist-hash-table
-                :hash-table-values))
+                :when-let))
 (in-package :websocket-driver.driver.hybi)
 
 (syntax:use-syntax :annot)
 
-(defconstant +byte+    #b11111111)
-(defconstant +fin+     #b10000000)
-(defconstant +mask+    #b10000000)
-(defconstant +rsv1+    #b01000000)
-(defconstant +rsv2+    #b00100000)
-(defconstant +rsv3+    #b00010000)
-(defconstant +opcode+  #b00001111)
-(defconstant +length+  #b01111111)
-
 (define-constant +guid+
   "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
   :test 'equal)
-
-(defconstant +min-reserved-error+ 3000)
-(defconstant +max-reserved-error+ 4999)
-
-(defparameter *opcodes-map*
-  (plist-hash-table '(:continuation 0
-                      :text         1
-                      :binary       2
-                      :close        8
-                      :ping         9
-                      :pong        10)
-                    :test 'eq))
-
-(defparameter *opcodes*
-  (hash-table-values *opcodes-map*))
-
-(defparameter *fragmented-opcodes*
-  (mapcar (lambda (name)
-            (gethash name *opcodes-map*))
-          '(:continuation :text :binary)))
-
-(defparameter *opening-opcodes*
-  (mapcar (lambda (name)
-            (gethash name *opcodes-map*))
-          '(:text :binary)))
-
-(defun opcode (name)
-  (or (gethash name *opcodes-map*)
-      (error "Unknown opcode name: ~S" name)))
 
 @export
 @export-accessors
@@ -90,18 +47,16 @@
    (require-masking :initarg :require-masking
                     :initform nil
                     :accessor require-masking)
-   (masking :initarg :masking
-            :initform nil
-            :accessor masking)
 
    (protocol :initform nil
              :accessor protocol)
-   (mode :initform nil
-         :accessor mode)
-   (buffer :initform (fast-io::make-output-buffer)
-           :accessor buffer)
    (ping-callbacks :initform (make-hash-table :test 'equalp)
-                   :accessor ping-callbacks)))
+                   :accessor ping-callbacks)
+   (ws :initform (fast-websocket:make-ws))
+   (parser :accessor parser)))
+
+(defmethod masking ((driver hybi))
+  (fast-websocket:ws-mask (slot-value driver 'ws)))
 
 (defmethod initialize-instance :after ((driver hybi) &key)
   (when (slot-boundp driver 'env)
@@ -113,7 +68,40 @@
       (setf (protocol driver)
             (find (lambda (proto)
                     (member proto protocols :test #'string=))
-                  env-protocols)))))
+                  env-protocols))))
+  (setf (parser driver)
+        (let ((ws (slot-value driver 'ws)))
+          (fast-websocket:make-parser
+           ws
+           :require-masking (require-masking driver)
+           :max-length (max-length driver)
+           :message-callback
+           (lambda (message)
+             (emit :message
+                   driver
+                   (make-message-event :data message)))
+           :pong-callback
+           (lambda (payload)
+             (let ((callback (gethash payload (ping-callbacks driver))))
+               (when callback
+                 (remhash payload (ping-callbacks driver))
+                 (funcall callback))))
+           :close-callback
+           (lambda (data &key start end code)
+             (send driver (subseq data start end) :type :close :code code)
+             (setf (ready-state driver) :closed)
+             (setf (fast-websocket:ws-stage ws) 5))
+           :ping-callback
+           (lambda (payload &key start end)
+             ;; XXX: needless subseq
+             (send driver (subseq payload start end) :type :pong))
+           :error-callback
+           (lambda (code reason)
+             (emit :error driver reason)
+             (send driver reason :type :close :code code)
+             (setf (ready-state driver) :closed)
+             (setf (stage driver) 5)
+             (emit :close driver (make-close-event :code code :reason reason)))))))
 
 (defmethod version ((driver hybi))
   (format nil "hybi-~A"
@@ -167,55 +155,8 @@
   (unless (eq (ready-state driver) :open)
     (return-from send nil))
 
-  (unless type
-    (setq type (if (stringp data) :text :binary)))
-
-  (when (stringp data)
-    (setq data (string-to-octets data :encoding :utf-8)))
-
-  (let* ((opcode (opcode type))
-         (insert (if code 2 0))
-         (length (+ (length data) insert))
-         (masked (if (masking driver)
-                     +mask+
-                     0))
-         (frame
-           (with-fast-output (frame :vector)
-             (fast-write-byte (logxor +fin+ opcode) frame)
-             (cond
-               ((<= length 125)
-                (fast-write-byte (logxor masked length) frame))
-               ((<= length 65535)
-                (fast-write-byte (logxor masked 126) frame)
-                (fast-write-byte (logand (ash length -8) +byte+) frame)
-                (fast-write-byte (logand length +byte+) frame))
-               (T
-                (fast-write-byte (logxor masked 127) frame)
-                (fast-write-byte (logand (ash length -56) +byte+) frame)
-                (fast-write-byte (logand (ash length -48) +byte+) frame)
-                (fast-write-byte (logand (ash length -40) +byte+) frame)
-                (fast-write-byte (logand (ash length -32) +byte+) frame)
-                (fast-write-byte (logand (ash length -24) +byte+) frame)
-                (fast-write-byte (logand (ash length -16) +byte+) frame)
-                (fast-write-byte (logand (ash length -8) +byte+) frame)
-                (fast-write-byte (logand length +byte+) frame)))
-
-             (when code
-               (setq data
-                     (concatenate '(vector (unsigned-byte 8))
-                                  (list (logand (ash code -8) +byte+)
-                                        (logand code +byte+))
-                                  data)))
-
-             (when (masking driver)
-               (let ((mask-keys
-                       (loop :repeat 4
-                             :for key := (random 256)
-                             :do (fast-write-byte key frame)
-                             :collect key)))
-                 (setq data (mask-message data mask-keys))))
-
-             (fast-write-sequence data frame))))
+  (let ((frame
+          (fast-websocket:compose-frame data :type type :code code :masking (masking driver))))
     (bb:with-promise (resolve reject)
       (write-to-socket (socket driver) frame
                        :callback
@@ -263,192 +204,4 @@
                            buffer))))
 
 (defmethod parse ((driver hybi) data)
-  (let ((final nil)
-        (opcode nil)
-        (length nil)
-        (length-size nil)
-        (masked nil)
-        (mask nil))
-    (labels ((check-frame-length ()
-               (unless (<= (+ (fast-io::output-buffer-len (buffer driver))
-                              length)
-                           (max-length driver))
-                 (error 'too-large))
-               T)
-             (parse-opcode (byte)
-               (let ((rsvs (mapcar (lambda (rsv)
-                                     (= (logand byte rsv) rsv))
-                                   (list +rsv1+
-                                         +rsv2+
-                                         +rsv3+))))
-                 (when (some (complement #'null) rsvs)
-                   (error 'protocol-error
-                          :format-control "One or more reserved bits are on: reserved1 = ~A, reserved2 = ~A, reserved3 = ~A"
-                          :format-arguments (list
-                                             (if (nth 0 rsvs) 1 0)
-                                             (if (nth 1 rsvs) 1 0)
-                                             (if (nth 2 rsvs) 1 0)))))
-
-               (setq final (= (logand byte +fin+) +fin+)
-                     opcode (logand byte +opcode+))
-
-               (unless (find opcode *opcodes* :test #'=)
-                 (error 'protocol-error
-                        :format-control "Unrecognized frame opcode: ~A"
-                        :format-arguments (list opcode)))
-
-               (unless (or final
-                           (find opcode *fragmented-opcodes* :test #'=))
-                 (error 'protocol-error
-                        :format-control "Received fragmented control frame: opcode = ~A"
-                        :format-arguments (list opcode)))
-
-               (when (and (mode driver)
-                          (find opcode *opening-opcodes* :test #'=))
-                 (error 'protocol-error
-                        :format-control "Received new data frame but previous continuous frame is unfinished"))
-
-               (setf (stage driver) 1))
-             (parse-length (byte)
-               (setq masked (= (logand byte +mask+) +mask+))
-               (when (and (require-masking driver)
-                          (not masked))
-                 (error 'unacceptable))
-
-               (setq length (logand byte +length+))
-
-               (cond
-                 ((<= 0 length 125)
-                  (check-frame-length)
-                  (setf (stage driver) (if masked 3 4)))
-                 (T
-                  (setq length-size (if (= length 126) 2 8))
-                  (setf (stage driver) 2))))
-             (parse-extended-length (buffer)
-               (setq length (aref buffer 0))
-               (loop for i from 1 below (length buffer)
-                     do (setq length (+ (ash length 8) (aref buffer i))))
-
-               (unless (or (find opcode *fragmented-opcodes* :test #'=)
-                           (<= length 125))
-                 (error 'protocol-error
-                        :format-control "Received control frame having too long payload: ~A"
-                        :format-arguments (list length)))
-
-               (check-frame-length)
-
-               (setf (stage driver) (if masked 3 4)))
-             (emit-frame (buffer)
-               (let ((payload (if masked
-                                  (mask-message buffer mask)
-                                  buffer))
-                     (finalp final)
-                     (opc opcode))
-                 (setq final nil
-                       opcode nil
-                       length nil
-                       length-size nil
-                       masked nil
-                       mask nil)
-
-                 (cond
-                   ((= opc (opcode :continuation))
-                    (unless (mode driver)
-                      (error 'protocol-error
-                             :format-control "Received unexpected continuation frame"))
-                    (fast-write-sequence payload (buffer driver))
-                    (when finalp
-                      (let ((message (fast-io::finish-output-buffer (buffer driver)))
-                            (mode (mode driver)))
-                        (setf (buffer driver) (fast-io::make-output-buffer)
-                              (mode driver) nil)
-                        (handler-case
-                            (emit :message
-                                  driver
-                                  (make-message-event :data (if (eq mode :text)
-                                                                (octets-to-string message :encoding :utf-8)
-                                                                message)))
-                          (babel:character-decoding-error ()
-                            (error 'encoding-error))))))
-                   ((= opc (opcode :text))
-                    (if finalp
-                        (handler-case
-                            (emit :message driver
-                                  (make-message-event :data (octets-to-string payload :encoding :utf-8)))
-                          (babel:character-decoding-error ()
-                            (error 'encoding-error)))
-                        (progn
-                          (setf (mode driver) :text)
-                          (fast-write-sequence payload (buffer driver)))))
-                   ((= opc (opcode :binary))
-                    (if finalp
-                        (emit :message driver (make-message-event :data payload))
-                        (progn
-                          (setf (mode driver) :binary)
-                          (fast-write-sequence payload (buffer driver)))))
-                   ((= opc (opcode :close))
-                    (let ((code (if (<= 2 (length payload))
-                                    (* 256 (aref payload 0) (aref payload 1))
-                                    nil)))
-                      (unless (or (zerop (length payload))
-                                  (and code
-                                       (<= +min-reserved-error+ code +max-reserved-error+))
-                                  (valid-error-code-p code))
-                        (setq code (error-code :protocol-error)))
-
-                      (let ((reason (if (<= 2 (length payload))
-                                        (subseq payload 2)
-                                        (make-array 0 :element-type '(unsigned-byte 8)))))
-                        (when (< (length payload) 125)
-                          (setq code (error-code :protocol-error)))
-                        (shutdown code reason))))
-                   ((= opc (opcode :ping))
-                    (send driver payload :type :pong))
-                   ((= opc (opcode :pong))
-                    (let ((callback (gethash payload (ping-callbacks driver))))
-                      (when callback
-                        (remhash payload (ping-callbacks driver))
-                        (funcall callback)))))))
-             (shutdown (code reason)
-               (send driver reason :type :close :code code)
-               (setf (ready-state driver) :closed)
-               (setf (stage driver) 5)
-               (emit :close driver (make-close-event :code code :reason reason))))
-      (with-fast-input (data-buffer data)
-        (let ((buffer t))
-          (flet ((read-seq-with-length (length)
-                   (let* ((buf (make-array length :element-type '(unsigned-byte 8)))
-                          (end (fast-read-sequence buf data-buffer)))
-                     (if (= length end)
-                         buf
-                         nil))))
-            (handler-case
-                (do () ((null buffer))
-                  (case (stage driver)
-                    (0
-                     (setq buffer (read-seq-with-length 1))
-                     (when buffer
-                       (parse-opcode (aref buffer 0))))
-                    (1
-                     (setq buffer (read-seq-with-length 1))
-                     (when buffer
-                       (parse-length (aref buffer 0))))
-                    (2
-                     (setq buffer (read-seq-with-length length-size))
-                     (when buffer
-                       (parse-extended-length buffer)))
-                    (3
-                     (setq buffer (read-seq-with-length 4))
-                     (when buffer
-                       (setq mask (coerce buffer 'list))
-                       (setf (stage driver) 4)))
-                    (4
-                     (setq buffer (read-seq-with-length length))
-                     (when buffer
-                       (emit-frame buffer)
-                       (setf (stage driver) 0)))
-                    (otherwise
-                     (setq buffer nil))))
-              (protocol-error (e)
-                (emit :error driver e)
-                (shutdown (error-code e) (princ-to-string e))))))))))
+  (funcall (parser driver) data))
