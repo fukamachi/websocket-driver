@@ -5,6 +5,11 @@
 
 This library provides a complete implementation of the WebSocket protocols.
 
+## Supported Servers
+
+* [Wookie](http://wookie.lyonbros.com)
+* [Woo](https://github.com/fukamachi/woo)
+
 ## Usage
 
 ### Server-side with Clack
