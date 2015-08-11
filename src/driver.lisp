@@ -107,9 +107,6 @@
                           :remove-all-listeners
                           :emit))
 
-(reexport-from :websocket-driver.error
-               :include '(:protocol-error))
-
 (reexport-from :websocket-driver.events
                :include '(:event
                           :connect-event

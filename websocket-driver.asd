@@ -32,17 +32,15 @@
   :components ((:module "src"
                 :components
                 ((:file "driver" :depends-on ("driver-components"
-                                              "error"
                                               "events"
                                               "util"))
                  (:module "driver-components"
                   :pathname "driver"
-                  :depends-on ("events" "socket" "header" "error" "util")
+                  :depends-on ("events" "socket" "header" "util")
                   :components
                   ((:file "base")
                    (:file "hybi" :depends-on ("base"))))
                  (:file "events")
-                 (:file "error")
                  (:file "socket" :depends-on ("util"))
                  (:file "header")
                  (:file "util"))))

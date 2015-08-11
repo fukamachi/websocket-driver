@@ -4,8 +4,7 @@
         :annot.class
         :event-emitter
         :websocket-driver.driver.base
-        :websocket-driver.events
-        :websocket-driver.error)
+        :websocket-driver.events)
   (:import-from :websocket-driver.header
                 :finalize-headers)
   (:import-from :websocket-driver.socket
