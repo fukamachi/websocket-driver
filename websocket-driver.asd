@@ -13,31 +13,27 @@
 (in-package :websocket-driver-asd)
 
 (defsystem websocket-driver
-  :version "0.0.1"
+  :version "0.2.0"
   :author "Eitaro Fukamachi"
   :license "BSD 2-Clause"
   :depends-on (:fast-websocket
                :fast-io
-               :babel
-               :quri
-               :cl-base64
-               :cl-ppcre
-               :ironclad
                :clack-socket
                :event-emitter
+               :trivial-utf-8
+               :ironclad
+               :cl-base64
                :blackbird
                :alexandria
-               :cl-syntax-annot
-               :cl-reexport)
+               :split-sequence)
   :components ((:module "src"
                 :components
                 ((:file "driver" :depends-on ("driver-components"))
                  (:module "driver-components"
                   :pathname "driver"
-                  :depends-on ("socket" "header")
+                  :depends-on ("socket")
                   :components
                   ((:file "base")
                    (:file "hybi" :depends-on ("base"))))
-                 (:file "socket")
-                 (:file "header"))))
+                 (:file "socket"))))
   :description "WebSocket protocol handler")

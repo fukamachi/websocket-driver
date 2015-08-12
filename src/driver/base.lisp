@@ -1,91 +1,87 @@
 (in-package :cl-user)
 (defpackage websocket-driver.driver.base
-  (:use :cl
-        :annot.class
-        :event-emitter)
-  (:import-from :websocket-driver.header
-                :make-headers
-                :write-header)
+  (:use :cl)
   (:import-from :websocket-driver.socket
-                :write-to-socket)
+                #:write-to-socket)
+  (:import-from :event-emitter
+                #:emit
+                #:event-emitter)
+  (:import-from :clack.socket
+                #:set-read-callback)
   (:import-from :blackbird
-                :with-promise)
+                #:with-promise)
   (:import-from :fast-io
-                :with-fast-output
-                :fast-write-sequence)
+                #:with-fast-output
+                #:fast-write-sequence)
   (:import-from :alexandria
-                :define-constant))
-(in-package :websocket-driver.driver.base)
+                #:define-constant)
+  (:export #:driver
+           #:socket
+           #:additional-headers
+           #:accept-protocols
+           #:protocol
+           #:version
+           #:max-length
+           #:ready-state
 
-(syntax:use-syntax :annot)
+           #:start-connection
+           #:parse
+           #:send
+           #:send-text
+           #:send-binary
+           #:send-ping
+           #:close-connection
+           #:open-connection
+           #:handshake-response
+           #:handshake-request))
+(in-package :websocket-driver.driver.base)
 
 (define-constant +states+
   #(:connecting :open :closing :closed)
   :test 'equalp)
 
-@export
-@export-accessors
 (defclass driver (event-emitter)
   ((socket :initarg :socket
            :accessor socket)
-   (protocols :initarg :protocols
-              :initform nil
-              :accessor protocols)
+   (accept-protocols :initarg :accept-protocols
+                     :initform '()
+                     :accessor accept-protocols)
+   (protocol :type (or null string)
+             :initform nil
+             :accessor protocol)
+   (version :accessor version)
    (max-length :initarg :max-length
                :initform #x3ffffff
                :accessor max-length)
-   (headers :initform (make-headers)
-            :accessor headers)
-   (queue :initform (make-array 0 :adjustable t :fill-pointer 0)
-          :accessor queue)
-   (stage :type fixnum
-          :initform 0
-          :accessor stage)
-   (protocol :type list
-             :initarg :protocols
-             :initform nil
-             :accessor protocol)
    (ready-state :type fixnum
-                :initform 0)))
+                :initform 0)
+   (additional-headers :initarg :additional-headers
+                       :initform '()
+                       :accessor additional-headers)
 
-@export
+   (queue :initform (make-array 0 :adjustable t :fill-pointer 0)
+          :accessor queue)))
+
 (defgeneric ready-state (driver)
   (:method ((driver driver))
-    (let ((state (slot-value driver 'ready-state)))
-      (cond
-        ((null state) nil)
-        ((and (integerp state)
-              (< -1 state (length +states+)))
-         (aref +states+ state))))))
+    (aref +states+ (slot-value driver 'ready-state))))
 
-@export
 (defgeneric (setf ready-state) (state driver)
   (:method (state (driver driver))
-    (check-type state symbol)
-    (if (null state)
-        (setf (slot-value driver 'ready-state) -1)
-        (let ((pos (position state +states+ :test #'eq)))
-          (unless pos
-            (error "Invalid state: ~S" state))
-          (setf (slot-value driver 'ready-state) pos)))))
+    (setf (slot-value driver 'ready-state)
+          (ecase state
+            (:connecting 0)
+            (:open       1)
+            (:closing    2)
+            (:closed     3)))))
 
-@export
-(defgeneric set-header (driver name value)
-  (:method ((driver driver) name value)
-    (unless (eq (ready-state driver) :connecting)
-      (return-from set-header nil))
-
-    (write-header (headers driver) name value)
-    T))
-
-@export
 (defgeneric start-connection (driver)
   (:method ((driver driver))
     (unless (eq (ready-state driver) :connecting)
       (return-from start-connection))
 
     (let ((socket (socket driver)))
-      (set-read-callback driver
+      (set-read-callback socket
                          (lambda (data &key (start 0) end)
                            (parse driver (subseq data start end))))
 
@@ -94,37 +90,37 @@
                          (handshake-response driver)
                          :callback
                          (lambda ()
-                           (unless (= (stage driver) -1)
+                           (unless (eq (ready-state driver) :closed)
                              (open-connection driver))
                            (resolve)))))))
 
-@export
-(defgeneric version (driver))
-
-@export
 (defgeneric parse (driver data))
 
-@export
 (defgeneric send (driver data &key type code))
+(defmethod send :around ((driver driver) data &key type code)
+  (when (eq (ready-state driver) :connecting)
+    (return-from send
+      (enqueue driver (list data type code))))
 
-@export
+  (unless (eq (ready-state driver) :open)
+    (return-from send nil))
+
+  (call-next-method))
+
 (defgeneric send-text (driver message)
   (:method ((driver driver) message)
     (send driver message)))
 
-@export
 (defgeneric send-binary (driver message)
   (:method (driver message)
     (declare (ignore driver message))
     nil))
 
-@export
 (defgeneric send-ping (driver &optional message callback)
   (:method (driver &optional message callback)
     (declare (ignore driver message callback))
     nil))
 
-@export
 (defgeneric close-connection (driver &optional reason code)
   (:method ((driver driver) &optional reason code)
     (declare (ignore reason code))
@@ -135,7 +131,6 @@
     (emit :close driver :code nil :reason nil)
     t))
 
-@export
 (defgeneric open-connection (driver)
   (:method ((driver driver))
     (setf (ready-state driver) :open)
@@ -151,19 +146,10 @@
 
     (emit :open driver)))
 
-@export
-(defgeneric enqueue (driver message)
-  (:method ((driver driver) message)
-    (vector-push-extend message (queue driver))
-    t))
+(defun enqueue (driver message)
+  (vector-push-extend message (queue driver))
+  t)
 
-@export
 (defgeneric handshake-response (driver))
 
-@export
 (defgeneric handshake-request (driver))
-
-@export
-(defgeneric set-read-callback (driver callback)
-  (:method ((driver driver) callback)
-    (clack.socket:set-read-callback (socket driver) callback)))
