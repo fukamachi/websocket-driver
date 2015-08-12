@@ -89,15 +89,15 @@
                        (emit :message driver message))
                      :pong-callback
                      (lambda (payload)
-                       (let ((callback (gethash payload (ping-callbacks driver))))
-                         (when callback
-                           (remhash payload (ping-callbacks driver))
-                           (funcall callback))))
+                       (when-let (callback (gethash payload (ping-callbacks driver)))
+                         (remhash payload (ping-callbacks driver))
+                         (funcall callback)))
                      :close-callback
                      (lambda (data &key start end code)
                        (send driver (subseq data start end) :type :close :code code)
                        (setf (ready-state driver) :closed)
-                       (setf (ws-stage (ws driver)) 5))
+                       (setf (ws-stage (ws driver)) 0)
+                       (emit :close driver :code code :reason (subseq data start end)))
                      :ping-callback
                      (lambda (payload &key start end)
                        ;; XXX: needless subseq
