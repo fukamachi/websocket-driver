@@ -63,7 +63,7 @@
 (defun make-server (env &rest options)
   (let ((socket (getf env :clack.io)))
     (unless socket
-      (error ":clack.io doesn't exist in ENV. Probably this is unsupported server."))
+      (error ":clack.io doesn't exist in ENV. Probably this server is not supported."))
     (apply #'make-instance 'hybi
            :socket socket
            :headers (getf env :headers)
