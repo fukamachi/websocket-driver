@@ -15,7 +15,8 @@
                 #:write-sequence-to-socket
                 #:write-sequence-to-socket-buffer
                 #:write-byte-to-socket-buffer
-                #:flush-socket-buffer)
+                #:flush-socket-buffer
+                #:close-socket)
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence
@@ -56,6 +57,18 @@
   (mapl (lambda (parts)
           (rplaca parts (string-trim '(#\Space) (car parts))))
         (split-sequence #\, string)))
+
+(defun send-close-frame (driver reason code)
+  (setf (ready-state driver) :closing)
+  (send driver reason :type :close :code code
+                      :callback
+                      (lambda ()
+                        (close-driver driver reason code))))
+
+(defun close-driver (driver reason code)
+  (close-socket (socket driver))
+  (setf (ready-state driver) :closed)
+  (emit :close driver :code code :reason reason))
 
 (defmethod initialize-instance :after ((driver hybi) &key)
   (let ((protocols (accept-protocols driver))
@@ -98,16 +111,19 @@
                          (funcall callback)))
                      :close-callback
                      (lambda (data &key code)
-                       (send driver data :start start :end end :type :close :code code)
-                       (setf (ready-state driver) :closed)
-                       (setf (ws-stage (ws driver)) 0)
-                       (emit :close driver :code code :reason (subseq data start end)))
+                       (case (ready-state driver)
+                         ;; closing request by client
+                         (:open
+                          (send-close-frame driver data code))
+                         ;; probably the response for a 'close' frame
+                         (otherwise
+                          (close-driver driver data code)))
+                       (setf (ws-stage (ws driver)) 0))
                      :error-callback
                      (lambda (code reason)
                        (emit :error driver reason)
-                       (send driver reason :type :close :code code)
-                       (setf (ready-state driver) :closed)
-                       (emit :close driver :code code :reason reason)))))
+                       (send-close-frame driver reason code)
+                       (setf (ws-stage (ws driver)) 0)))))
 
 (defmethod send-ping ((driver hybi) &optional message callback)
   (unless message
