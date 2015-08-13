@@ -20,8 +20,6 @@
                 #:with-fast-output
                 #:fast-write-sequence
                 #:fast-write-byte)
-  (:import-from :blackbird
-                #:with-promise)
   (:import-from :ironclad
                 #:digest-sequence
                 #:ascii-string-to-byte-array)
@@ -111,12 +109,6 @@
                        (setf (ready-state driver) :closed)
                        (emit :close driver :code code :reason reason)))))
 
-(defmethod send-text ((driver hybi) message &key start end)
-  (send driver message :type :text :start start :end end))
-
-(defmethod send-binary ((driver hybi) message &key start end)
-  (send driver message :type :binary :start start :end :end))
-
 (defmethod send-ping ((driver hybi) &optional message callback)
   (unless message
     (setq message #.(make-array 0 :element-type '(unsigned-byte 8))))
@@ -137,17 +129,15 @@
      t)
     (otherwise nil)))
 
-(defmethod send ((driver hybi) data &key start end type code)
+(defmethod send ((driver hybi) data &key start end type code callback)
   (let ((frame (compose-frame data
                               :start start
                               :end end
                               :type type
                               :code code
                               :masking nil)))
-    (bb:with-promise (resolve reject)
-      (write-sequence-to-socket (socket driver) frame
-                                :callback
-                                (lambda () (resolve))))))
+    (write-sequence-to-socket (socket driver) frame
+                              :callback callback)))
 
 (defun generate-accept (key)
   (declare (optimize (speed 3) (safety 0))

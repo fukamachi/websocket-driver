@@ -23,7 +23,6 @@
                :trivial-utf-8
                :ironclad
                :cl-base64
-               :blackbird
                :alexandria
                :split-sequence)
   :components ((:module "src"

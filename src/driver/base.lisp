@@ -6,8 +6,6 @@
                 #:event-emitter)
   (:import-from :clack.socket
                 #:set-read-callback)
-  (:import-from :blackbird
-                #:with-promise)
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence)
@@ -83,40 +81,34 @@
                          (lambda (data &key (start 0) end)
                            (parse driver data :start start :end end)))
 
-      (bb:with-promise (resolve reject)
-        (send-handshake-response driver
-                                 :callback
-                                 (lambda ()
-                                   (unless (eq (ready-state driver) :closed)
-                                     (open-connection driver))
-                                   (resolve)))))))
+      (send-handshake-response driver
+                               :callback
+                               (lambda ()
+                                 (unless (eq (ready-state driver) :closed)
+                                   (open-connection driver)))))))
 
 (defgeneric parse (driver data &key start end))
 
-(defgeneric send (driver data &key start end type code))
-(defmethod send :around ((driver driver) data &key start end type code)
+(defgeneric send (driver data &key start end type code callback))
+(defmethod send :around ((driver driver) data &key start end type code callback)
   (when (eq (ready-state driver) :connecting)
     (return-from send
-      (enqueue driver (list data start end type code))))
+      (enqueue driver (list data start end type code callback))))
 
   (unless (eq (ready-state driver) :open)
     (return-from send nil))
 
   (call-next-method))
 
-(defgeneric send-text (driver message &key start end)
-  (:method ((driver driver) message &key start end)
-    (send driver message)))
+(defgeneric send-text (driver message &key start end callback)
+  (:method ((driver driver) message &rest args)
+    (apply #'send driver message :type :text args)))
 
-(defgeneric send-binary (driver message &key start end)
-  (:method (driver message &key start end)
-    (declare (ignore driver message start end))
-    nil))
+(defgeneric send-binary (driver message &key start end callback)
+  (:method ((driver driver) message &rest args)
+    (apply #'send driver message :type :binary args)))
 
-(defgeneric send-ping (driver &optional message callback)
-  (:method (driver &optional message callback)
-    (declare (ignore driver message callback))
-    nil))
+(defgeneric send-ping (driver &optional message callback))
 
 (defgeneric close-connection (driver &optional reason code)
   (:method ((driver driver) &optional reason code)
