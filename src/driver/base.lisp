@@ -93,24 +93,24 @@
 
 (defgeneric parse (driver data &key start end))
 
-(defgeneric send (driver data &key type code))
-(defmethod send :around ((driver driver) data &key type code)
+(defgeneric send (driver data &key start end type code))
+(defmethod send :around ((driver driver) data &key start end type code)
   (when (eq (ready-state driver) :connecting)
     (return-from send
-      (enqueue driver (list data type code))))
+      (enqueue driver (list data start end type code))))
 
   (unless (eq (ready-state driver) :open)
     (return-from send nil))
 
   (call-next-method))
 
-(defgeneric send-text (driver message)
-  (:method ((driver driver) message)
+(defgeneric send-text (driver message &key start end)
+  (:method ((driver driver) message &key start end)
     (send driver message)))
 
-(defgeneric send-binary (driver message)
-  (:method (driver message)
-    (declare (ignore driver message))
+(defgeneric send-binary (driver message &key start end)
+  (:method (driver message &key start end)
+    (declare (ignore driver message start end))
     nil))
 
 (defgeneric send-ping (driver &optional message callback)

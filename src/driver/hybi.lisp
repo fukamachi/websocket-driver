@@ -97,14 +97,13 @@
                          (funcall callback)))
                      :close-callback
                      (lambda (data &key start end code)
-                       (send driver (subseq data start end) :type :close :code code)
+                       (send driver data :start start :end end :type :close :code code)
                        (setf (ready-state driver) :closed)
                        (setf (ws-stage (ws driver)) 0)
                        (emit :close driver :code code :reason (subseq data start end)))
                      :ping-callback
                      (lambda (payload &key start end)
-                       ;; XXX: needless subseq
-                       (send driver (subseq payload start end) :type :pong))
+                       (send driver payload :start start :end end :type :pong))
                      :error-callback
                      (lambda (code reason)
                        (emit :error driver reason)
@@ -112,15 +111,15 @@
                        (setf (ready-state driver) :closed)
                        (emit :close driver :code code :reason reason)))))
 
-(defmethod send-text ((driver hybi) message)
-  (send driver message :type :text))
+(defmethod send-text ((driver hybi) message &key start end)
+  (send driver message :type :text :start start :end end))
 
-(defmethod send-binary ((driver hybi) message)
-  (send driver message :type :binary))
+(defmethod send-binary ((driver hybi) message &key start end)
+  (send driver message :type :binary :start start :end :end))
 
 (defmethod send-ping ((driver hybi) &optional message callback)
   (unless message
-    (setq message (make-array 0 :element-type '(unsigned-byte 8))))
+    (setq message #.(make-array 0 :element-type '(unsigned-byte 8))))
   (when callback
     (setf (gethash message (ping-callbacks driver))
           callback))
@@ -138,8 +137,10 @@
      t)
     (otherwise nil)))
 
-(defmethod send ((driver hybi) data &key type code)
+(defmethod send ((driver hybi) data &key start end type code)
   (let ((frame (compose-frame data
+                              :start start
+                              :end end
                               :type type
                               :code code
                               :masking nil)))
