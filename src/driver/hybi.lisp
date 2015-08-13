@@ -12,7 +12,10 @@
                 #:compose-frame
                 #:error-code)
   (:import-from :clack.socket
-                #:write-to-socket)
+                #:write-sequence-to-socket
+                #:write-sequence-to-socket-buffer
+                #:write-byte-to-socket-buffer
+                #:flush-socket-buffer)
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence
@@ -141,53 +144,59 @@
                               :code code
                               :masking nil)))
     (bb:with-promise (resolve reject)
-      (write-to-socket (socket driver) frame
-                       :callback
-                       (lambda () (resolve))))))
+      (write-sequence-to-socket (socket driver) frame
+                                :callback
+                                (lambda () (resolve))))))
 
 (defun generate-accept (key)
+  (declare (optimize (speed 3) (safety 0))
+           (type simple-string key))
   (base64:usb8-array-to-base64-string
    (ironclad:digest-sequence :sha1
                              (ironclad:ascii-string-to-byte-array
                               (concatenate 'string key +guid+)))))
 
-(defmethod handshake-response ((driver hybi))
-  (let ((sec-key (gethash "sec-websocket-key" (headers driver))))
+(defmethod send-handshake-response ((driver hybi) &key callback)
+  (let ((socket (socket driver))
+        (sec-key (gethash "sec-websocket-key" (headers driver))))
     (unless (stringp sec-key)
-      (return-from handshake-response
-        (make-array 0 :element-type '(unsigned-byte 8))))
+      (when callback (funcall callback))
+      (return-from send-handshake-response))
 
-    (with-fast-output (buffer :vector)
-      (fast-write-sequence
-       #.(string-to-utf-8-bytes
+    (labels ((octets (data)
+               (write-sequence-to-socket-buffer socket data))
+             (ascii-string (data)
+               (octets (ascii-string-to-byte-array data)))
+             (crlf ()
+               (octets #.(ascii-string-to-byte-array (format nil "~C~C" #\Return #\Newline)))))
+      (octets
+       #.(ascii-string-to-byte-array
           (with-output-to-string (s)
-            (format s "HTTP/1.1 101 Switching Protocols~C~C" #\Return #\Linefeed)
-            (format s "Upgrade: websocket~C~C" #\Return #\Linefeed)
-            (format s "Connection: Upgrade~C~C" #\Return #\Linefeed)
-            (format s "Sec-WebSocket-Accept: ")))
-       buffer)
-      (fast-write-sequence (string-to-utf-8-bytes (generate-accept sec-key)) buffer)
-      (fast-write-sequence #.(string-to-utf-8-bytes (format nil "~C~C" #\Return #\Linefeed))
-                           buffer)
+            (format s "HTTP/1.1 101 Switching Protocols~C~C" #\Return #\Newline)
+            (format s "Upgrade: websocket~C~C" #\Return #\Newline)
+            (format s "Connection: Upgrade~C~C" #\Return #\Newline)
+            (format s "Sec-WebSocket-Accept: "))))
+      (ascii-string
+       (generate-accept sec-key))
+      (crlf)
 
       (when-let (protocol (protocol driver))
-        (fast-write-sequence (string-to-utf-8-bytes
-                              (format nil "Sec-WebSocket-Protocol: ~A~C~C"
-                                      protocol
-                                      #\Return #\Linefeed))
-                             buffer))
+        (octets
+         #.(ascii-string-to-byte-array "Sec-WebSocket-Protocol: "))
+        (ascii-string protocol)
+        (crlf))
 
       (loop for (name . value) in (additional-headers driver)
-            do (fast-write-sequence
-                (string-to-utf-8-bytes (string-capitalize name)) buffer)
-               (fast-write-byte (char-code #\:) buffer)
-               (fast-write-byte (char-code #\Space) buffer)
-               (fast-write-sequence (string-to-utf-8-bytes value) buffer)
-               (fast-write-sequence #.(string-to-utf-8-bytes (format nil "~C~C" #\Return #\Newline))
-                                    buffer))
+            do (ascii-string
+                (string-capitalize name))
+               (octets
+                #.(ascii-string-to-byte-array ": "))
+               (ascii-string value)
+               (crlf))
 
-      (fast-write-sequence #.(string-to-utf-8-bytes (format nil "~C~C" #\Return #\Linefeed))
-                           buffer))))
+      (crlf))
+
+    (flush-socket-buffer socket :callback callback)))
 
 (defmethod parse ((driver hybi) data)
   (funcall (parser driver) data))

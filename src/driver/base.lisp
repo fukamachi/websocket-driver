@@ -5,7 +5,6 @@
                 #:emit
                 #:event-emitter)
   (:import-from :clack.socket
-                #:write-to-socket
                 #:set-read-callback)
   (:import-from :blackbird
                 #:with-promise)
@@ -31,8 +30,8 @@
            #:send-ping
            #:close-connection
            #:open-connection
-           #:handshake-response
-           #:handshake-request))
+           #:send-handshake-response
+           #:send-handshake-request))
 (in-package :websocket-driver.driver.base)
 
 (define-constant +states+
@@ -85,13 +84,12 @@
                            (parse driver (subseq data start end))))
 
       (bb:with-promise (resolve reject)
-        (write-to-socket socket
-                         (handshake-response driver)
-                         :callback
-                         (lambda ()
-                           (unless (eq (ready-state driver) :closed)
-                             (open-connection driver))
-                           (resolve)))))))
+        (send-handshake-response driver
+                                 :callback
+                                 (lambda ()
+                                   (unless (eq (ready-state driver) :closed)
+                                     (open-connection driver))
+                                   (resolve)))))))
 
 (defgeneric parse (driver data))
 
@@ -149,6 +147,6 @@
   (vector-push-extend message (queue driver))
   t)
 
-(defgeneric handshake-response (driver))
+(defgeneric send-handshake-response (driver &key callback))
 
-(defgeneric handshake-request (driver))
+(defgeneric send-handshake-request (driver &key callback))
