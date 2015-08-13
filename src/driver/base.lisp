@@ -1,12 +1,11 @@
 (in-package :cl-user)
 (defpackage websocket-driver.driver.base
   (:use :cl)
-  (:import-from :websocket-driver.socket
-                #:write-to-socket)
   (:import-from :event-emitter
                 #:emit
                 #:event-emitter)
   (:import-from :clack.socket
+                #:write-to-socket
                 #:set-read-callback)
   (:import-from :blackbird
                 #:with-promise)

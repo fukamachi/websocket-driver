@@ -3,8 +3,6 @@
   (:use :cl
         #:split-sequence
         #:websocket-driver.driver.base)
-  (:import-from :websocket-driver.socket
-                #:write-to-socket)
   (:import-from :event-emitter
                 #:emit)
   (:import-from :fast-websocket
@@ -13,6 +11,8 @@
                 #:make-parser
                 #:compose-frame
                 #:error-code)
+  (:import-from :clack.socket
+                #:write-to-socket)
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence

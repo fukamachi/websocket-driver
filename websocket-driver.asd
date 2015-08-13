@@ -31,9 +31,7 @@
                 ((:file "driver" :depends-on ("driver-components"))
                  (:module "driver-components"
                   :pathname "driver"
-                  :depends-on ("socket")
                   :components
                   ((:file "base")
-                   (:file "hybi" :depends-on ("base"))))
-                 (:file "socket"))))
+                   (:file "hybi" :depends-on ("base")))))))
   :description "WebSocket protocol handler")
