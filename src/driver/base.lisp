@@ -81,7 +81,7 @@
     (let ((socket (socket driver)))
       (set-read-callback socket
                          (lambda (data &key (start 0) end)
-                           (parse driver (subseq data start end))))
+                           (parse driver data :start start :end end)))
 
       (bb:with-promise (resolve reject)
         (send-handshake-response driver
@@ -91,7 +91,7 @@
                                      (open-connection driver))
                                    (resolve)))))))
 
-(defgeneric parse (driver data))
+(defgeneric parse (driver data &key start end))
 
 (defgeneric send (driver data &key type code))
 (defmethod send :around ((driver driver) data &key type code)

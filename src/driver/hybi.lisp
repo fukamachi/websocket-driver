@@ -198,5 +198,5 @@
 
     (flush-socket-buffer socket :callback callback)))
 
-(defmethod parse ((driver hybi) data)
-  (funcall (parser driver) data))
+(defmethod parse ((driver hybi) data &key (start 0) end)
+  (funcall (parser driver) data :start start :end end))
