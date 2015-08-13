@@ -90,20 +90,20 @@
                      :message-callback
                      (lambda (message)
                        (emit :message driver message))
+                     :ping-callback
+                     (lambda (payload)
+                       (send driver payload :type :pong))
                      :pong-callback
                      (lambda (payload)
                        (when-let (callback (gethash payload (ping-callbacks driver)))
                          (remhash payload (ping-callbacks driver))
                          (funcall callback)))
                      :close-callback
-                     (lambda (data &key start end code)
+                     (lambda (data &key code)
                        (send driver data :start start :end end :type :close :code code)
                        (setf (ready-state driver) :closed)
                        (setf (ws-stage (ws driver)) 0)
                        (emit :close driver :code code :reason (subseq data start end)))
-                     :ping-callback
-                     (lambda (payload &key start end)
-                       (send driver payload :start start :end end :type :pong))
                      :error-callback
                      (lambda (code reason)
                        (emit :error driver reason)
