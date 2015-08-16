@@ -3,7 +3,7 @@
 (ql:quickload '(:uiop :websocket-driver-client) :silent t)
 
 (defvar *client*
-  (wsdc:make-client "ws://localhost:5000/echo"))
+  (wsd:make-client "ws://localhost:5000/echo"))
 
 (wsd:on :open *client*
         (lambda ()

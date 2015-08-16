@@ -7,7 +7,7 @@
   :version "0.2.0"
   :author "Eitaro Fukamachi"
   :license "BSD 2-Clause"
-  :depends-on (:websocket-driver
+  :depends-on (:websocket-driver-base
                :cl-async
                #-websocket-driver-no-ssl :cl-async-ssl
                :fast-io
@@ -21,8 +21,3 @@
                 :components
                 ((:file "driver/client")
                  (:file "client" :depends-on ("driver/client"))))))
-
-
-
-
-

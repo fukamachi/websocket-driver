@@ -1,14 +1,15 @@
 (in-package :cl-user)
 (defpackage websocket-driver.driver.hybi
   (:use :cl
-        #:split-sequence
-        #:websocket-driver.driver.base)
+        #:websocket-driver.driver.base
+        #:websocket-driver.util)
   (:import-from :event-emitter
                 #:emit)
   (:import-from :fast-websocket
                 #:compose-frame
                 #:error-code)
   (:import-from :clack.socket
+                #:set-read-callback
                 #:write-sequence-to-socket
                 #:write-sequence-to-socket-buffer
                 #:write-byte-to-socket-buffer
@@ -19,17 +20,11 @@
                 #:fast-write-sequence
                 #:fast-write-byte)
   (:import-from :ironclad
-                #:digest-sequence
                 #:ascii-string-to-byte-array)
-  (:import-from :base64
-                #:usb8-array-to-base64-string)
   (:import-from :trivial-utf-8
                 #:string-to-utf-8-bytes)
   (:export #:hybi))
 (in-package :websocket-driver.driver.hybi)
-
-(defparameter +guid+
-  "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
 
 (defclass hybi (driver)
   ((headers :initarg :headers
@@ -39,11 +34,6 @@
    (require-masking :initarg :require-masking
                     :initform t
                     :accessor require-masking)))
-
-(defun split-by-comma (string)
-  (mapl (lambda (parts)
-          (rplaca parts (string-trim '(#\Space) (car parts))))
-        (split-sequence #\, string)))
 
 (defmethod initialize-instance :after ((driver hybi) &key)
   (let ((protocols (accept-protocols driver))
@@ -69,17 +59,26 @@
          (error "Unsupported WebSocket version: ~S" ws-version)))))
   (setf (version driver) "hybi-13"))
 
+(defmethod start-connection ((driver hybi))
+  (unless (eq (ready-state driver) :connecting)
+      (return-from start-connection))
+
+  (let ((socket (socket driver)))
+    (set-read-callback socket
+                       (lambda (data &key (start 0) end)
+                         (parse driver data :start start :end end)))
+
+    (send-handshake-response driver
+                             :callback
+                             (lambda ()
+                               (unless (eq (ready-state driver) :closed)
+                                 (open-connection driver))))))
+
 (defmethod close-connection ((driver hybi) &optional (reason "") (code (error-code :normal-closure)))
-  (case (ready-state driver)
-    (:connecting
-     (setf (ready-state driver) :closed)
-     (emit :close driver :code code :reason reason)
-     t)
-    (:open
-     (send driver reason :type :close :code code)
-     (setf (ready-state driver) :closing)
-     t)
-    (otherwise nil)))
+  (close-socket (socket driver))
+  (send driver reason :type :close :code code)
+  (setf (ready-state driver) :closing)
+  t)
 
 (defmethod send ((driver hybi) data &key start end type code callback)
   (let ((frame (compose-frame data
@@ -90,14 +89,6 @@
                               :masking nil)))
     (write-sequence-to-socket (socket driver) frame
                               :callback callback)))
-
-(defun generate-accept (key)
-  (declare (optimize (speed 3) (safety 0))
-           (type simple-string key))
-  (base64:usb8-array-to-base64-string
-   (ironclad:digest-sequence :sha1
-                             (ironclad:ascii-string-to-byte-array
-                              (concatenate 'string key +guid+)))))
 
 (defmethod send-handshake-response ((driver hybi) &key callback)
   (let ((socket (socket driver))

@@ -16,20 +16,6 @@
   :version "0.2.0"
   :author "Eitaro Fukamachi"
   :license "BSD 2-Clause"
-  :depends-on (:fast-websocket
-               :fast-io
-               :clack-socket
-               :event-emitter
-               :trivial-utf-8
-               :ironclad
-               :cl-base64
-               :split-sequence)
-  :components ((:module "src"
-                :components
-                ((:file "driver" :depends-on ("driver-components"))
-                 (:module "driver-components"
-                  :pathname "driver"
-                  :components
-                  ((:file "base")
-                   (:file "hybi" :depends-on ("base")))))))
+  :depends-on (:websocket-driver-server
+               :websocket-driver-client)
   :description "WebSocket protocol handler")

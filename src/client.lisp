@@ -1,6 +1,5 @@
 (in-package :cl-user)
 (defpackage websocket-driver-client
-  (:nicknames :wsdc)
   (:use :cl)
   (:import-from :websocket-driver.driver.client
                 #:client)
@@ -11,3 +10,6 @@
   (apply #'make-instance 'client
          :url url
          options))
+
+(import 'make-client :websocket-driver)
+(export 'make-client :websocket-driver)

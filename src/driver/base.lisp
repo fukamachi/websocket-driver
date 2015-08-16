@@ -8,8 +8,6 @@
   (:import-from :event-emitter
                 #:emit
                 #:event-emitter)
-  (:import-from :clack.socket
-                #:set-read-callback)
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence)
@@ -74,12 +72,7 @@
   (send driver reason :type :close :code code
                       :callback
                       (lambda ()
-                        (close-driver driver reason code))))
-
-(defun close-driver (driver reason code)
-  (close-socket (socket driver))
-  (setf (ready-state driver) :closed)
-  (emit :close driver :code code :reason reason))
+                        (close-connection driver reason code))))
 
 (defmethod initialize-instance :after ((driver driver) &key)
   (setf (parser driver)
@@ -94,9 +87,10 @@
                        (send driver payload :type :pong))
                      :pong-callback
                      (lambda (payload)
-                       (when-let (callback (gethash payload (ping-callbacks driver)))
-                         (remhash payload (ping-callbacks driver))
-                         (funcall callback)))
+                       (let ((callback (gethash payload (ping-callbacks driver))))
+                         (when callback
+                           (remhash payload (ping-callbacks driver)) 
+                           (funcall callback))))
                      :close-callback
                      (lambda (data &key code)
                        (case (ready-state driver)
@@ -105,7 +99,7 @@
                           (send-close-frame driver data code))
                          ;; probably the response for a 'close' frame
                          (otherwise
-                          (close-driver driver data code)))
+                          (close-connection driver data code)))
                        (setf (ws-stage (ws driver)) 0))
                      :error-callback
                      (lambda (code reason)
@@ -126,21 +120,7 @@
             (:closing    2)
             (:closed     3)))))
 
-(defgeneric start-connection (driver)
-  (:method ((driver driver))
-    (unless (eq (ready-state driver) :connecting)
-      (return-from start-connection))
-
-    (let ((socket (socket driver)))
-      (set-read-callback socket
-                         (lambda (data &key (start 0) end)
-                           (parse driver data :start start :end end)))
-
-      (send-handshake-response driver
-                               :callback
-                               (lambda ()
-                                 (unless (eq (ready-state driver) :closed)
-                                   (open-connection driver)))))))
+(defgeneric start-connection (driver))
 
 (defgeneric parse (driver data &key start end)
   (:method (driver data &key start end)
@@ -174,15 +154,17 @@
             callback))
     (send driver message :type :ping)))
 
-(defgeneric close-connection (driver &optional reason code)
-  (:method ((driver driver) &optional reason code)
-    (declare (ignore reason code))
-    (unless (eq (ready-state driver) :open)
-      (return-from close-connection))
+(defgeneric close-connection (driver &optional reason code))
 
-    (setf (ready-state driver) :closed)
-    (emit :close driver :code nil :reason nil)
-    t))
+(defmethod close-connection :around ((driver driver) &optional reason code)
+  (case (ready-state driver)
+    (:connecting
+     (setf (ready-state driver) :closed)
+     (emit :close driver :code code :reason reason)
+     t)
+    (:open
+     (call-next-method))
+    (otherwise nil)))
 
 (defgeneric open-connection (driver)
   (:method ((driver driver))

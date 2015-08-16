@@ -15,7 +15,7 @@ This library provides a complete implementation of the WebSocket protocols.
 ### Server-side with Clack
 
 ```common-lisp
-(ql:quickload '(:websocket-driver :clack))
+(ql:quickload '(:websocket-driver-server :clack))
 
 (use-package :websocket-driver)
 
@@ -37,7 +37,7 @@ This library provides a complete implementation of the WebSocket protocols.
 ```common-lisp
 (ql:quickload :websocket-driver-client)
 
-(defvar *client* (wsdc:make-client "ws://localhost:5000/echo"))
+(defvar *client* (wsd:make-client "ws://localhost:5000/echo"))
 
 (as:with-event-loop ()
   (wsd:start-connection *client*)

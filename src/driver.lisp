@@ -2,8 +2,6 @@
 (defpackage websocket-driver
   (:nicknames :wsd)
   (:use :cl)
-  (:import-from :websocket-driver.driver.hybi
-                #:hybi)
   (:import-from :websocket-driver.driver.base
                 #:driver
                 #:socket
@@ -29,8 +27,7 @@
                 #:remove-listener
                 #:remove-all-listeners
                 #:emit)
-  (:export #:make-server
-           #:websocket-p
+  (:export #:websocket-p
 
            ;; from driver
            #:driver
@@ -59,15 +56,6 @@
            #:remove-all-listeners
            #:emit))
 (in-package :websocket-driver)
-
-(defun make-server (env &rest options)
-  (let ((socket (getf env :clack.io)))
-    (unless socket
-      (error ":clack.io doesn't exist in ENV. Probably this server is not supported."))
-    (apply #'make-instance 'hybi
-           :socket socket
-           :headers (getf env :headers)
-           options)))
 
 (defun websocket-p (env)
   (let ((headers (getf env :headers)))

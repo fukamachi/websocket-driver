@@ -1,11 +1,12 @@
 (in-package :cl-user)
 (defpackage websocket-driver.driver.client
   (:use :cl
-        #:websocket-driver.driver.base)
-  (:import-from :websocket-driver.driver.hybi
-                #:generate-accept)
+        #:websocket-driver.driver.base
+        #:websocket-driver.util)
   (:import-from :cl-async
                 #:tcp-connect)
+  (:import-from :event-emitter
+                #:emit)
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence)
@@ -171,3 +172,9 @@
 
          (crlf)))
      :write-cb callback)))
+
+(defmethod close-connection ((driver client) &optional reason code)
+  (as:close-socket (socket driver))
+  (setf (ready-state driver) :closed)
+  (emit :close driver :code code :reason reason)
+  t)
