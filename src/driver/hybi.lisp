@@ -25,15 +25,11 @@
                 #:usb8-array-to-base64-string)
   (:import-from :trivial-utf-8
                 #:string-to-utf-8-bytes)
-  (:import-from :alexandria
-                #:define-constant
-                #:when-let)
   (:export #:hybi))
 (in-package :websocket-driver.driver.hybi)
 
-(define-constant +guid+
-  "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-  :test 'equal)
+(defparameter +guid+
+  "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
 
 (defclass hybi (driver)
   ((headers :initarg :headers
@@ -127,11 +123,12 @@
        (generate-accept sec-key))
       (crlf)
 
-      (when-let (protocol (protocol driver))
-        (octets
-         #.(ascii-string-to-byte-array "Sec-WebSocket-Protocol: "))
-        (ascii-string protocol)
-        (crlf))
+      (let ((protocol (protocol driver)))
+        (when protocol
+          (octets
+           #.(ascii-string-to-byte-array "Sec-WebSocket-Protocol: "))
+          (ascii-string protocol)
+          (crlf)))
 
       (loop for (name . value) in (additional-headers driver)
             do (ascii-string

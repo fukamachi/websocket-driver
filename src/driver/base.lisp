@@ -13,8 +13,6 @@
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence)
-  (:import-from :alexandria
-                #:define-constant)
   (:export #:driver
            #:socket
            #:additional-headers
@@ -38,9 +36,8 @@
            #:send-handshake-request))
 (in-package :websocket-driver.driver.base)
 
-(define-constant +states+
-  #(:connecting :open :closing :closed)
-  :test 'equalp)
+(defparameter +states+
+  #(:connecting :open :closing :closed))
 
 (defclass driver (event-emitter)
   ((socket :initarg :socket
