@@ -6,9 +6,6 @@
   (:import-from :event-emitter
                 #:emit)
   (:import-from :fast-websocket
-                #:make-ws
-                #:ws-stage
-                #:make-parser
                 #:compose-frame
                 #:error-code)
   (:import-from :clack.socket
@@ -45,30 +42,12 @@
             :accessor headers)
    (require-masking :initarg :require-masking
                     :initform t
-                    :accessor require-masking)
-
-   (ws :initform (fast-websocket:make-ws)
-       :accessor ws)
-   (ping-callbacks :initform (make-hash-table :test 'equalp)
-                   :accessor ping-callbacks)
-   (parser :accessor parser)))
+                    :accessor require-masking)))
 
 (defun split-by-comma (string)
   (mapl (lambda (parts)
           (rplaca parts (string-trim '(#\Space) (car parts))))
         (split-sequence #\, string)))
-
-(defun send-close-frame (driver reason code)
-  (setf (ready-state driver) :closing)
-  (send driver reason :type :close :code code
-                      :callback
-                      (lambda ()
-                        (close-driver driver reason code))))
-
-(defun close-driver (driver reason code)
-  (close-socket (socket driver))
-  (setf (ready-state driver) :closed)
-  (emit :close driver :code code :reason reason))
 
 (defmethod initialize-instance :after ((driver hybi) &key)
   (let ((protocols (accept-protocols driver))
@@ -92,46 +71,7 @@
       (integer
        (unless (= ws-version 13)
          (error "Unsupported WebSocket version: ~S" ws-version)))))
-  (setf (version driver) "hybi-13")
-
-  (setf (parser driver)
-        (make-parser (ws driver)
-                     :require-masking (require-masking driver)
-                     :max-length (max-length driver)
-                     :message-callback
-                     (lambda (message)
-                       (emit :message driver message))
-                     :ping-callback
-                     (lambda (payload)
-                       (send driver payload :type :pong))
-                     :pong-callback
-                     (lambda (payload)
-                       (when-let (callback (gethash payload (ping-callbacks driver)))
-                         (remhash payload (ping-callbacks driver))
-                         (funcall callback)))
-                     :close-callback
-                     (lambda (data &key code)
-                       (case (ready-state driver)
-                         ;; closing request by client
-                         (:open
-                          (send-close-frame driver data code))
-                         ;; probably the response for a 'close' frame
-                         (otherwise
-                          (close-driver driver data code)))
-                       (setf (ws-stage (ws driver)) 0))
-                     :error-callback
-                     (lambda (code reason)
-                       (emit :error driver reason)
-                       (send-close-frame driver reason code)
-                       (setf (ws-stage (ws driver)) 0)))))
-
-(defmethod send-ping ((driver hybi) &optional message callback)
-  (unless message
-    (setq message #.(make-array 0 :element-type '(unsigned-byte 8))))
-  (when callback
-    (setf (gethash message (ping-callbacks driver))
-          callback))
-  (send driver message :type :ping))
+  (setf (version driver) "hybi-13"))
 
 (defmethod close-connection ((driver hybi) &optional (reason "") (code (error-code :normal-closure)))
   (case (ready-state driver)
@@ -204,6 +144,3 @@
       (crlf))
 
     (flush-socket-buffer socket :callback callback)))
-
-(defmethod parse ((driver hybi) data &key (start 0) end)
-  (funcall (parser driver) data :start start :end end))

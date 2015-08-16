@@ -1,6 +1,10 @@
 (in-package :cl-user)
 (defpackage websocket-driver.driver.base
   (:use :cl)
+  (:import-from :fast-websocket
+                #:make-ws
+                #:ws-stage
+                #:make-parser)
   (:import-from :event-emitter
                 #:emit
                 #:event-emitter)
@@ -19,6 +23,8 @@
            #:version
            #:max-length
            #:ready-state
+           #:require-masking
+           #:ws
 
            #:start-connection
            #:parse
@@ -56,7 +62,59 @@
                        :accessor additional-headers)
 
    (queue :initform (make-array 0 :adjustable t :fill-pointer 0)
-          :accessor queue)))
+          :accessor queue)
+
+   (require-masking :initarg :require-masking
+                    :accessor require-masking)
+   (ws :initform (fast-websocket:make-ws)
+       :accessor ws)
+   (ping-callbacks :initform (make-hash-table :test 'equalp)
+                   :accessor ping-callbacks)
+   (parser :accessor parser)))
+
+(defun send-close-frame (driver reason code)
+  (setf (ready-state driver) :closing)
+  (send driver reason :type :close :code code
+                      :callback
+                      (lambda ()
+                        (close-driver driver reason code))))
+
+(defun close-driver (driver reason code)
+  (close-socket (socket driver))
+  (setf (ready-state driver) :closed)
+  (emit :close driver :code code :reason reason))
+
+(defmethod initialize-instance :after ((driver driver) &key)
+  (setf (parser driver)
+        (make-parser (ws driver)
+                     :require-masking (require-masking driver)
+                     :max-length (max-length driver)
+                     :message-callback
+                     (lambda (message)
+                       (emit :message driver message))
+                     :ping-callback
+                     (lambda (payload)
+                       (send driver payload :type :pong))
+                     :pong-callback
+                     (lambda (payload)
+                       (when-let (callback (gethash payload (ping-callbacks driver)))
+                         (remhash payload (ping-callbacks driver))
+                         (funcall callback)))
+                     :close-callback
+                     (lambda (data &key code)
+                       (case (ready-state driver)
+                         ;; closing request by the other peer
+                         (:open
+                          (send-close-frame driver data code))
+                         ;; probably the response for a 'close' frame
+                         (otherwise
+                          (close-driver driver data code)))
+                       (setf (ws-stage (ws driver)) 0))
+                     :error-callback
+                     (lambda (code reason)
+                       (emit :error driver reason)
+                       (send-close-frame driver reason code)
+                       (setf (ws-stage (ws driver)) 0)))))
 
 (defgeneric ready-state (driver)
   (:method ((driver driver))
@@ -87,13 +145,15 @@
                                  (unless (eq (ready-state driver) :closed)
                                    (open-connection driver)))))))
 
-(defgeneric parse (driver data &key start end))
+(defgeneric parse (driver data &key start end)
+  (:method (driver data &key start end)
+    (funcall (parser driver) data :start start :end end)))
 
 (defgeneric send (driver data &key start end type code callback))
-(defmethod send :around ((driver driver) data &key start end type code callback)
+(defmethod send :around ((driver driver) data &rest args)
   (when (eq (ready-state driver) :connecting)
     (return-from send
-      (enqueue driver (list data start end type code callback))))
+      (enqueue driver (cons data args))))
 
   (unless (eq (ready-state driver) :open)
     (return-from send nil))
@@ -108,7 +168,14 @@
   (:method ((driver driver) message &rest args)
     (apply #'send driver message :type :binary args)))
 
-(defgeneric send-ping (driver &optional message callback))
+(defgeneric send-ping (driver &optional message callback)
+  (:method ((driver driver) &optional message callback)
+    (unless message
+      (setq message #.(make-array 0 :element-type '(unsigned-byte 8))))
+    (when callback
+      (setf (gethash message (ping-callbacks driver))
+            callback))
+    (send driver message :type :ping)))
 
 (defgeneric close-connection (driver &optional reason code)
   (:method ((driver driver) &optional reason code)
@@ -125,9 +192,7 @@
     (setf (ready-state driver) :open)
 
     (map nil (lambda (message)
-               (destructuring-bind (message type code)
-                   message
-                 (send driver message :type type :code code)))
+               (apply #'send driver message))
          (queue driver))
 
     (setf (queue driver)

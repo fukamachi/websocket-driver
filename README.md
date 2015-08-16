@@ -32,6 +32,18 @@ This library provides a complete implementation of the WebSocket protocols.
 (clack:clackup *echo-server* :server :wookie :port 5000)
 ```
 
+### Client-side
+
+```common-lisp
+(ql:quickload :websocket-driver-client)
+
+(defvar *client* (wsdc:make-client "ws://localhost:5000/echo"))
+
+(as:with-event-loop ()
+  (wsd:start-connection *client*)
+  (wsd:send *client* "Hi"))
+```
+
 ## Driver API
 
 #### `(on :open driver callback)`
@@ -100,4 +112,6 @@ Licensed under the BSD 2-Clause License.
 
 ## See Also
 
+* [Clack](http://clacklisp.org)
 * [Event Emitter](https://github.com/fukamachi/event-emitter)
+* [cl-async](http://orthecreedence.github.io/cl-async/)
