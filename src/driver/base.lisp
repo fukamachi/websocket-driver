@@ -170,12 +170,13 @@
   (:method ((driver driver))
     (setf (ready-state driver) :open)
 
-    (map nil (lambda (message)
-               (apply #'send driver message))
-         (queue driver))
+    (unless (= 0 (length (queue driver)))
+      (map nil (lambda (message)
+                 (apply #'send driver message))
+           (queue driver))
 
-    (setf (queue driver)
-          (make-array 0 :adjustable t :fill-pointer 0))
+      (setf (queue driver)
+            (make-array 0 :adjustable t :fill-pointer 0)))
 
     (emit :open driver)))
 
