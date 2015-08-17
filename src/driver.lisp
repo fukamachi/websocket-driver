@@ -9,7 +9,6 @@
                 #:accept-protocols
                 #:protocol
                 #:version
-                #:max-length
                 #:ready-state
 
                 #:start-connection
@@ -36,7 +35,6 @@
            #:accept-protocols
            #:protocol
            #:version
-           #:max-length
            #:ready-state
 
            #:start-connection

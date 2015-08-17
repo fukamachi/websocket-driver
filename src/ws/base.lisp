@@ -17,7 +17,6 @@
            #:accept-protocols
            #:protocol
            #:version
-           #:max-length
            #:ready-state
            #:require-masking
            #:ws
