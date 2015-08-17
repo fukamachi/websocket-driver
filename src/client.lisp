@@ -6,7 +6,8 @@
   (:export #:make-client))
 (in-package :websocket-driver-client)
 
-(defun make-client (url &rest options)
+(defun make-client (url &rest options &key max-length accept-protocols additional-headers)
+  (declare (ignore max-length accept-protocols additional-headers))
   (apply #'make-instance 'client
          :url url
          options))

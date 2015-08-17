@@ -6,7 +6,8 @@
   (:export #:make-server))
 (in-package :websocket-driver.server)
 
-(defun make-server (env &rest options)
+(defun make-server (env &rest options &key max-length accept-protocols additional-headers)
+  (declare (ignore max-length accept-protocols additional-headers))
   (let ((socket (getf env :clack.io)))
     (unless socket
       (error ":clack.io doesn't exist in ENV. Probably this server is not supported."))

@@ -137,13 +137,11 @@
 
   (call-next-method))
 
-(defgeneric send-text (ws message &key start end callback)
-  (:method ((ws ws) message &rest args)
-    (apply #'send ws message :type :text args)))
+(defun send-text (ws message &key start end callback)
+  (apply #'send ws message :type :text args))
 
-(defgeneric send-binary (ws message &key start end callback)
-  (:method ((ws ws) message &rest args)
-    (apply #'send ws message :type :binary args)))
+(defun send-binary (ws message &key start end callback)
+  (apply #'send ws message :type :binary args))
 
 (defgeneric send-ping (ws &optional message callback)
   (:method ((ws ws) &optional message callback)
