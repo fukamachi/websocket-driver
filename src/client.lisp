@@ -1,7 +1,7 @@
 (in-package :cl-user)
 (defpackage websocket-driver-client
   (:use :cl)
-  (:import-from :websocket-driver.driver.client
+  (:import-from :websocket-driver.ws.client
                 #:client)
   (:export #:make-client))
 (in-package :websocket-driver-client)

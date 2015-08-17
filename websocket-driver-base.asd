@@ -15,7 +15,7 @@
                :split-sequence)
   :components ((:module "src"
                 :components
-                ((:file "driver" :depends-on ("driver/base"))
-                 (:file "driver/base" :depends-on ("util"))
+                ((:file "driver" :depends-on ("ws/base"))
+                 (:file "ws/base" :depends-on ("util"))
                  (:file "util"))))
   :description "WebSocket protocol handler")

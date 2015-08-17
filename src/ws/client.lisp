@@ -1,7 +1,7 @@
 (in-package :cl-user)
-(defpackage websocket-driver.driver.client
+(defpackage websocket-driver.ws.client
   (:use :cl
-        #:websocket-driver.driver.base
+        #:websocket-driver.ws.base
         #:websocket-driver.util)
   (:import-from :cl-async
                 #:tcp-connect)
@@ -28,9 +28,9 @@
                 #:uri-host
                 #:uri-port)
   (:export #:client))
-(in-package :websocket-driver.driver.client)
+(in-package :websocket-driver.ws.client)
 
-(defclass client (driver)
+(defclass client (ws)
   ((url :initarg :url
         :initform (error ":url is required")
         :accessor url)
@@ -48,18 +48,18 @@
       (setf (aref key i) (random 255)))
     (base64:usb8-array-to-base64-string key)))
 
-(defmethod initialize-instance :after ((driver client) &key)
-  (setf (accept driver) (generate-accept (key driver))))
+(defmethod initialize-instance :after ((client client) &key)
+  (setf (accept client) (generate-accept (key client))))
 
-(defmethod start-connection ((driver client))
-  (unless (eq (ready-state driver) :connecting)
+(defmethod start-connection ((client client))
+  (unless (eq (ready-state client) :connecting)
     (return-from start-connection))
 
   (flet ((fail-handshake (format-control &rest format-arguments)
            (error 'protocol-error
                   :format-control (format nil "Error during WebSocket handshake:~%  ~A" format-control)
                   :format-arguments format-arguments)))
-    (let* ((uri (quri:uri (url driver)))
+    (let* ((uri (quri:uri (url client)))
            (connect-fn (cond
                          ((string-equal (uri-scheme uri) "ws")
                           #'as:tcp-connect)
@@ -88,16 +88,16 @@
                                            ((not (string-equal connection "upgrade"))
                                             (fail-handshake "'Connection' header value is not 'Upgrade'"))))
 
-                                       (unless (string= (accept driver)
+                                       (unless (string= (accept client)
                                                         (gethash "sec-websocket-accept" headers ""))
                                          (fail-handshake "Sec-WebSocket-Accept mismatch"))
 
                                        (let ((protocol (gethash "sec-websocket-protocol" headers)))
-                                         (when (accept-protocols driver)
+                                         (when (accept-protocols client)
                                            (unless (and protocol
-                                                        (find protocol (accept-protocols driver) :test #'string=))
+                                                        (find protocol (accept-protocols client) :test #'string=))
                                              (fail-handshake "Sec-WebSocket-Protocol mismatch"))
-                                           (setf (protocol driver) protocol))))))
+                                           (setf (protocol client) protocol))))))
            (socket
              (funcall connect-fn (uri-host uri) (uri-port uri)
                       (lambda (sock data)
@@ -106,26 +106,26 @@
                           (setf (getf callbacks :read-cb)
                                 (lambda (sock data)
                                   (declare (ignore sock))
-                                  (parse driver data)))
+                                  (parse client data)))
                           (as::save-callbacks (as::socket-c sock) callbacks))
-                        (open-connection driver)))))
+                        (open-connection client)))))
 
-      (setf (socket driver) socket)
-      (send-handshake-request driver))))
+      (setf (socket client) socket)
+      (send-handshake-request client))))
 
-(defmethod send ((driver client) data &key start end type code callback)
+(defmethod send ((client client) data &key start end type code callback)
   (let ((frame (compose-frame data
                               :start start
                               :end end
                               :type type
                               :code code
                               :masking t)))
-    (as:write-socket-data (socket driver) frame
+    (as:write-socket-data (socket client) frame
                           :write-cb callback)))
 
-(defmethod send-handshake-request ((driver client) &key callback)
-  (let ((uri (quri:uri (url driver)))
-        (socket (socket driver)))
+(defmethod send-handshake-request ((client client) &key callback)
+  (let ((uri (quri:uri (url client)))
+        (socket (socket client)))
     (as:write-socket-data
      socket
      (with-fast-output (buffer)
@@ -151,18 +151,18 @@
                (format s "Connection: Upgrade~C~C" #\Return #\Newline))))
          (ascii-string
           (format nil "Sec-WebSocket-Key: ~A~C~C"
-                  (key driver)
+                  (key client)
                   #\Return #\Newline))
          (octets
           #.(ascii-string-to-byte-array
              (format nil "Sec-WebSocket-Version: 13~C~C" #\Return #\Newline)))
-         (when (accept-protocols driver)
+         (when (accept-protocols client)
            (ascii-string
             (format nil "Sec-WebSocket-Protocol: ~{~A~^, ~}~C~C"
-                    (accept-protocols driver)
+                    (accept-protocols client)
                     #\Return #\Newline)))
 
-         (loop for (name . value) in (additional-headers driver)
+         (loop for (name . value) in (additional-headers client)
                do (ascii-string
                    (string-capitalize name))
                   (octets
@@ -173,8 +173,8 @@
          (crlf)))
      :write-cb callback)))
 
-(defmethod close-connection ((driver client) &optional reason code)
-  (as:close-socket (socket driver))
-  (setf (ready-state driver) :closed)
-  (emit :close driver :code code :reason reason)
+(defmethod close-connection ((client client) &optional reason code)
+  (as:close-socket (socket client))
+  (setf (ready-state client) :closed)
+  (emit :close client :code code :reason reason)
   t)

@@ -1,7 +1,7 @@
 (in-package :cl-user)
-(defpackage websocket-driver.driver.hybi
+(defpackage websocket-driver.ws.server
   (:use :cl
-        #:websocket-driver.driver.base
+        #:websocket-driver.ws.base
         #:websocket-driver.util)
   (:import-from :event-emitter
                 #:emit)
@@ -23,10 +23,10 @@
                 #:ascii-string-to-byte-array)
   (:import-from :trivial-utf-8
                 #:string-to-utf-8-bytes)
-  (:export #:hybi))
-(in-package :websocket-driver.driver.hybi)
+  (:export #:server))
+(in-package :websocket-driver.ws.server)
 
-(defclass hybi (driver)
+(defclass server (ws)
   ((headers :initarg :headers
             :initform (error ":headers is required")
             :type hash-table
@@ -35,19 +35,19 @@
                     :initform t
                     :accessor require-masking)))
 
-(defmethod initialize-instance :after ((driver hybi) &key)
-  (let ((protocols (accept-protocols driver))
-        (env-protocols (gethash "sec-websocket-protocol" (headers driver))))
+(defmethod initialize-instance :after ((server server) &key)
+  (let ((protocols (accept-protocols server))
+        (env-protocols (gethash "sec-websocket-protocol" (headers server))))
     (when env-protocols
       (setq env-protocols (split-by-comma env-protocols)))
-    (setf (protocol driver)
+    (setf (protocol server)
           (find-if (lambda (proto)
                      (find proto protocols :test #'string=))
                    env-protocols)))
 
   ;; Sec-Websocket-Version must be "13"
   (let ((ws-version (gethash "sec-websocket-version"
-                             (headers driver)
+                             (headers server)
                              "")))
     (etypecase ws-version
       (string
@@ -57,42 +57,42 @@
       (integer
        (unless (= ws-version 13)
          (error "Unsupported WebSocket version: ~S" ws-version)))))
-  (setf (version driver) "hybi-13"))
+  (setf (version server) "hybi-13"))
 
-(defmethod start-connection ((driver hybi))
-  (unless (eq (ready-state driver) :connecting)
+(defmethod start-connection ((server server))
+  (unless (eq (ready-state server) :connecting)
       (return-from start-connection))
 
-  (let ((socket (socket driver)))
+  (let ((socket (socket server)))
     (set-read-callback socket
                        (lambda (data &key (start 0) end)
-                         (parse driver data :start start :end end)))
+                         (parse server data :start start :end end)))
 
-    (send-handshake-response driver
+    (send-handshake-response server
                              :callback
                              (lambda ()
-                               (unless (eq (ready-state driver) :closed)
-                                 (open-connection driver))))))
+                               (unless (eq (ready-state server) :closed)
+                                 (open-connection server))))))
 
-(defmethod close-connection ((driver hybi) &optional (reason "") (code (error-code :normal-closure)))
-  (close-socket (socket driver))
-  (send driver reason :type :close :code code)
-  (setf (ready-state driver) :closing)
+(defmethod close-connection ((server server) &optional (reason "") (code (error-code :normal-closure)))
+  (close-socket (socket server))
+  (send server reason :type :close :code code)
+  (setf (ready-state server) :closing)
   t)
 
-(defmethod send ((driver hybi) data &key start end type code callback)
+(defmethod send ((server server) data &key start end type code callback)
   (let ((frame (compose-frame data
                               :start start
                               :end end
                               :type type
                               :code code
                               :masking nil)))
-    (write-sequence-to-socket (socket driver) frame
+    (write-sequence-to-socket (socket server) frame
                               :callback callback)))
 
-(defmethod send-handshake-response ((driver hybi) &key callback)
-  (let ((socket (socket driver))
-        (sec-key (gethash "sec-websocket-key" (headers driver))))
+(defmethod send-handshake-response ((server server) &key callback)
+  (let ((socket (socket server))
+        (sec-key (gethash "sec-websocket-key" (headers server))))
     (unless (stringp sec-key)
       (when callback (funcall callback))
       (return-from send-handshake-response))
@@ -114,14 +114,14 @@
        (generate-accept sec-key))
       (crlf)
 
-      (let ((protocol (protocol driver)))
+      (let ((protocol (protocol server)))
         (when protocol
           (octets
            #.(ascii-string-to-byte-array "Sec-WebSocket-Protocol: "))
           (ascii-string protocol)
           (crlf)))
 
-      (loop for (name . value) in (additional-headers driver)
+      (loop for (name . value) in (additional-headers server)
             do (ascii-string
                 (string-capitalize name))
                (octets

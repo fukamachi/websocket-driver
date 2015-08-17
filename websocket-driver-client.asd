@@ -19,5 +19,5 @@
                :quri)
   :components ((:module "src"
                 :components
-                ((:file "driver/client")
-                 (:file "client" :depends-on ("driver/client"))))))
+                ((:file "ws/client")
+                 (:file "client" :depends-on ("ws/client"))))))

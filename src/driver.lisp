@@ -2,8 +2,8 @@
 (defpackage websocket-driver
   (:nicknames :wsd)
   (:use :cl)
-  (:import-from :websocket-driver.driver.base
-                #:driver
+  (:import-from :websocket-driver.ws.base
+                #:ws
                 #:socket
                 #:additional-headers
                 #:accept-protocols
@@ -29,8 +29,8 @@
                 #:emit)
   (:export #:websocket-p
 
-           ;; from driver
-           #:driver
+           ;; from ws
+           #:ws
            #:socket
            #:additional-headers
            #:accept-protocols

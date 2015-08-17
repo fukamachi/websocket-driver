@@ -15,6 +15,6 @@
                :trivial-utf-8)
   :components ((:module "src"
                 :components
-                ((:file "server" :depends-on ("driver/hybi"))
-                 (:file "driver/hybi"))))
+                ((:file "server" :depends-on ("ws/server"))
+                 (:file "ws/server"))))
   :description "WebSocket protocol handler")
