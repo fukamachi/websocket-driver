@@ -11,7 +11,7 @@ done
 RESULT=$(node t/client.js)
 echo "$RESULT"
 
-kill "$SERVER_PID"
+kill -HUP "$SERVER_PID"
 
 if [ "$RESULT" != "ok" ]; then
     exit 1;
