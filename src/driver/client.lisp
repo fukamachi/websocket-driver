@@ -293,7 +293,7 @@
                         (when (< bytes-read buffer-size)
                           (setq endp t)))))))))))
 
-(defmethod clack.socket:write-to-socket ((socket iolib:socket) message &key callback)
+(defmethod clack.socket:write-sequence-to-socket ((socket iolib:socket) message &key callback)
   (iolib:send-to socket message)
   (when callback
     (funcall callback)))

@@ -5,4 +5,4 @@
 (in-package :websocket-driver.socket)
 
 (defun write-to-socket (socket message &key callback)
-  (clack.socket:write-to-socket socket message :callback callback))
+  (clack.socket:write-sequence-to-socket socket message :callback callback))
