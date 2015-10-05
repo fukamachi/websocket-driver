@@ -4,13 +4,20 @@
 (in-package :websocket-driver-client-asd)
 
 (defsystem websocket-driver-client
-  :version "0.1.0"
+  :version "0.2.0"
   :author "Eitaro Fukamachi"
   :license "BSD 2-Clause"
-  :depends-on (:websocket-driver
-               :bordeaux-threads
-               :iolib)
+  :depends-on (:websocket-driver-base
+               :cl-async
+               #-websocket-driver-no-ssl :cl-async-ssl
+               :fast-io
+               :fast-websocket
+               :fast-http
+               :cl-base64
+               :trivial-utf-8
+               :ironclad
+               :quri)
   :components ((:module "src"
                 :components
-                ((:file "client" :depends-on ("driver/client"))
-                 (:file "driver/client")))))
+                ((:file "ws/client")
+                 (:file "client" :depends-on ("ws/client"))))))

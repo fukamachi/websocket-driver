@@ -3,18 +3,15 @@
 (ql:quickload '(:uiop :websocket-driver-client) :silent t)
 
 (defvar *client*
-  (wsdc:make-client "ws://localhost:5000/echo"))
-
-(wsd:start-connection *client*)
+  (wsd:make-client "ws://localhost:5000/echo"))
 
 (wsd:on :open *client*
-        (lambda (socket)
-          (declare (ignore socket))
+        (lambda ()
           (format *error-output* "~&connected~%")))
 
 (wsd:on :message *client*
-        (lambda (event)
-          (if (string= (wsd:event-data event) "Hi")
+        (lambda (message)
+          (if (string= message "Hi")
               (progn
                 (format t "~&ok~%")
                 (uiop:quit))
@@ -22,8 +19,9 @@
                 (format t "~&ng~%")
                 (uiop:quit -1)))))
 
-(wsd:send *client* "Hi")
+(as:with-event-loop (:catch-app-errors t)
+  (wsd:start-connection *client*)
 
-(sleep 10)
+  (wsd:send *client* "Hi")
 
-(format *error-output* "Exiting")
+  (format *error-output* "~&Exiting~%"))

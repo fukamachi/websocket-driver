@@ -8,10 +8,10 @@ while true; do
     sleep 1
 done
 
-RESULT=$(ros -l websocket-driver.asd -l websocket-driver-client.asd -l t/client.lisp 2>/dev/null)
+RESULT=$(ros -l websocket-driver-client.asd -l t/client.lisp 2>/dev/null)
 echo "$RESULT"
 
-kill "$SERVER_PID"
+kill -HUP "$SERVER_PID"
 
 if [ "$RESULT" != "ok" ]; then
     exit 1;

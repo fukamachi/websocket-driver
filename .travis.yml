@@ -31,12 +31,14 @@ install:
   - npm install ws
   - mkdir -p ~/common-lisp
   - git clone https://github.com/fukamachi/clack ~/common-lisp/clack
+  - git clone https://github.com/fukamachi/fast-websocket ~/common-lisp/fast-websocket
 
 cache:
   directories:
     - $HOME/.roswell
     - $HOME/libfixposix
     - $HOME/libuv
+    - $HOME/.config/common-lisp
 
 script:
   - ./run-tests.sh
