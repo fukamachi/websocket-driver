@@ -60,12 +60,12 @@
                   :format-control (format nil "Error during WebSocket handshake:~%  ~A" format-control)
                   :format-arguments format-arguments)))
     (let* ((uri (quri:uri (url client)))
-           (connect-fn (cond
-                         ((string-equal (uri-scheme uri) "ws")
-                          #'as:tcp-connect)
+           (secure (cond ((string-equal (uri-scheme uri) "ws")
+                          nil)
                          ((string-equal (uri-scheme uri) "wss")
-                          #'as-ssl:tcp-ssl-connect)
+                          t)
                          (t (error "Invalid URI scheme: ~S" (uri-scheme uri)))))
+           (connect-fn (if secure #'as-ssl:tcp-ssl-connect #'as:tcp-connect))
            (http (make-http-response))
            (http-parser (make-parser http
                                      :first-line-callback
@@ -103,7 +103,7 @@
                       (lambda (sock data)
                         (funcall http-parser data)
                         (let ((callbacks (as::get-callbacks (as::socket-c sock))))
-                          (setf (getf callbacks :read-cb)
+                          (setf (getf callbacks (if secure :ssl-read-cb :read-cb))
                                 (lambda (sock data)
                                   (declare (ignore sock))
                                   (parse client data)))
