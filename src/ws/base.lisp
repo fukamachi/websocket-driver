@@ -136,10 +136,12 @@
 
   (call-next-method))
 
-(defun send-text (ws message &key start end callback)
+(defun send-text (ws message &rest args &key start end callback)
+  (declare (ignore start end callback))
   (apply #'send ws message :type :text args))
 
-(defun send-binary (ws message &key start end callback)
+(defun send-binary (ws message &rest args &key start end callback)
+  (declare (ignore start end callback))
   (apply #'send ws message :type :binary args))
 
 (defgeneric send-ping (ws &optional message callback)
