@@ -11,6 +11,9 @@
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence)
+  (:import-from :bordeaux-threads
+                #:make-recursive-lock
+                #:with-recursive-lock-held)
   (:export #:ws
            #:socket
            #:additional-headers
@@ -64,7 +67,9 @@
              :accessor ws-parse)
    (ping-callbacks :initform (make-hash-table :test 'equalp)
                    :accessor ping-callbacks)
-   (parser :accessor parser)))
+   (parser :accessor parser)
+   (parse-lock :initform (make-recursive-lock)
+               :reader parse-lock)))
 
 (defun send-close-frame (ws reason code)
   (setf (ready-state ws) :closing)
@@ -123,7 +128,8 @@
 
 (defgeneric parse (ws data &key start end)
   (:method (ws data &key start end)
-    (funcall (parser ws) data :start start :end end)))
+    (with-recursive-lock-held ((parse-lock ws))
+      (funcall (parser ws) data :start start :end end))))
 
 (defgeneric send (ws data &key start end type code callback))
 (defmethod send :around ((ws ws) data &rest args)
