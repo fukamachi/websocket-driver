@@ -12,7 +12,8 @@
                :event-emitter
                :ironclad
                :cl-base64
-               :split-sequence)
+               :split-sequence
+               :bordeaux-threads)
   :components ((:module "src"
                 :components
                 ((:file "driver" :depends-on ("ws/base"))
