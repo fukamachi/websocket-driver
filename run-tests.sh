@@ -8,7 +8,7 @@ while true; do
     nc -z 127.0.0.1 5000 >/dev/null 2>&1 && break
     sleep 1
     count=$(( count + 1 ))
-    if [ 60 -lt $count ]; then
+    if [ 180 -lt $count ]; then
         echo "Too long time took to start a server."
         exit 1;
     fi
