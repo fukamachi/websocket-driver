@@ -30,8 +30,7 @@ install:
     fi
   - npm install ws
   - mkdir -p ~/common-lisp
-  - git clone https://github.com/fukamachi/clack ~/common-lisp/clack
-  - git clone https://github.com/fukamachi/fast-websocket ~/common-lisp/fast-websocket
+  - git clone -b hunchentoot-socket https://github.com/fukamachi/clack ~/common-lisp/clack
 
 cache:
   directories:
@@ -41,5 +40,6 @@ cache:
     - $HOME/.config/common-lisp
 
 script:
-  - ./run-tests.sh
+  - CLACK_HANDLER=wookie ./run-tests.sh
+  - CLACK_HANDLER=hunchentoot ./run-tests.sh
   - ./run-client-tests.sh
