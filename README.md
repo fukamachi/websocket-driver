@@ -7,6 +7,7 @@ This library provides WebSocket server & client implementation for Common Lisp.
 
 ## Supported Servers
 
+* [Hunchentoot](http://weitz.de/hunchentoot/)
 * [Wookie](http://wookie.lyonbros.com)
 * [Woo](https://github.com/fukamachi/woo)
 
