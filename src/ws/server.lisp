@@ -72,7 +72,9 @@
                              :callback
                              (lambda ()
                                (unless (eq (ready-state server) :closed)
-                                 (open-connection server))))))
+                                 (open-connection server))))
+
+    (clack.socket:start-connection socket)))
 
 (defmethod close-connection ((server server) &optional (reason "") (code (error-code :normal-closure)))
   (close-socket (socket server))

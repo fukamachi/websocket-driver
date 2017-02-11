@@ -1,4 +1,6 @@
-language: common-lisp
+language: node_js
+node_js:
+  - "node"
 
 sudo: false
 
@@ -14,11 +16,6 @@ env:
     - LISP=sbcl-bin
     - LISP=ccl-bin
 
-addons:
-  apt:
-    packages:
-      - nodejs
-
 install:
   # libuv for Wookie
   - if ! [ -f "$HOME/libuv/include/uv.h" ]; then ./t/install-libuv.sh; fi
@@ -26,20 +23,12 @@ install:
   - if ! [ -f "$HOME/libfixposix/include/lfp.h" ]; then ./t/install-libfixposix.sh; fi
   # Install Roswell
   - if ! $(which ros >/dev/null); then
-      curl -L https://raw.githubusercontent.com/snmsts/roswell/$ROSWELL_BRANCH/scripts/install-for-ci.sh | sh;
+      curl -L https://raw.githubusercontent.com/roswell/roswell/$ROSWELL_BRANCH/scripts/install-for-ci.sh | sh;
     fi
   - npm install ws
-  - mkdir -p ~/common-lisp
-  - git clone https://github.com/fukamachi/clack ~/common-lisp/clack
-  - git clone https://github.com/fukamachi/fast-websocket ~/common-lisp/fast-websocket
-
-cache:
-  directories:
-    - $HOME/.roswell
-    - $HOME/libfixposix
-    - $HOME/libuv
-    - $HOME/.config/common-lisp
+  - ros install fukamachi/clack
 
 script:
-  - ./run-tests.sh
+  - CLACK_HANDLER=wookie ./run-tests.sh
+  - CLACK_HANDLER=hunchentoot ./run-tests.sh
   - ./run-client-tests.sh
