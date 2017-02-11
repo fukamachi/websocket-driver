@@ -6,6 +6,9 @@
         :websocket-driver))
 (in-package :websocket-test)
 
+(defparameter *handler*
+  (intern (string-upcase (or (asdf::getenv "CLACK_HANDLER") "hunchentoot")) :keyword))
+
 (defvar *app*
   (lambda (env)
     (cond
@@ -38,5 +41,4 @@
 </html>
 "))))))
 
-(defvar *handler*
-  (clack:clackup *app* :server :wookie :use-thread nil))
+(clack:clackup *app* :server *handler* :use-thread nil)
