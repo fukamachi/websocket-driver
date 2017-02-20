@@ -3,12 +3,11 @@
   (:use :cl
         #:websocket-driver.ws.base
         #:websocket-driver.util)
-  (:import-from :cl-async
-                #:tcp-connect)
   (:import-from :event-emitter
                 #:emit)
   (:import-from :fast-io
                 #:with-fast-output
+                #:fast-write-byte
                 #:fast-write-sequence)
   (:import-from :fast-websocket
                 #:compose-frame)
@@ -40,7 +39,8 @@
    (version :initform "hybi-13")
    (require-masking :initarg :require-masking
                     :initform nil
-                    :accessor require-masking)))
+                    :accessor require-masking)
+   (read-thread :initform nil)))
 
 (defun generate-key ()
   (let ((key (make-array 16 :element-type '(unsigned-byte 8))))
@@ -50,6 +50,101 @@
 
 (defmethod initialize-instance :after ((client client) &key)
   (setf (accept client) (generate-accept (key client))))
+
+(defun read-until-crlf*2 (stream)
+  (declare (optimize (speed 3)))
+  (with-fast-output (buf)
+    (tagbody
+     read-cr
+       (loop for byte of-type (or (unsigned-byte 8) null) = (read-byte stream nil nil)
+             if byte
+               do (fast-write-byte byte buf)
+             else
+               do (go eof)
+             until (= byte (char-code #\Return)))
+
+     read-lf
+       (let ((next-byte (read-byte stream nil nil)))
+         (unless next-byte
+           (go eof))
+         (locally (declare (type (unsigned-byte 8) next-byte))
+           (cond
+             ((= next-byte (char-code #\Newline))
+              (fast-write-byte next-byte buf)
+              (go read-cr2))
+             ((= next-byte (char-code #\Return))
+              (fast-write-byte next-byte buf)
+              (go read-lf))
+             (T
+              (fast-write-byte next-byte buf)
+              (go read-cr)))))
+
+     read-cr2
+       (let ((next-byte (read-byte stream nil nil)))
+         (unless next-byte
+           (go eof))
+         (locally (declare (type (unsigned-byte 8) next-byte))
+           (cond
+             ((= next-byte (char-code #\Return))
+              (fast-write-byte next-byte buf)
+              (go read-lf2))
+             (T
+              (fast-write-byte next-byte buf)
+              (go read-cr)))))
+
+     read-lf2
+       (let ((next-byte (read-byte stream nil nil)))
+         (unless next-byte
+           (go eof))
+         (locally (declare (type (unsigned-byte 8) next-byte))
+           (cond
+             ((= next-byte (char-code #\Newline))
+              (fast-write-byte next-byte buf))
+             ((= next-byte (char-code #\Return))
+              (fast-write-byte next-byte buf)
+              (go read-lf))
+             (T
+              (fast-write-byte next-byte buf)
+              (go read-cr)))))
+
+     eof)))
+
+(defun read-websocket-message (stream)
+  (let ((buf (make-array 2 :element-type '(unsigned-byte 8)))
+        (extended-buf (make-array 8 :element-type '(unsigned-byte 8))))
+    (block nil
+      (tagbody retry
+         (let ((read-bytes (handler-case (read-sequence buf stream)
+                             (error ()
+                               ;; Retry when I/O timeout error
+                               (go retry)))))
+           (when (= read-bytes 0)
+             (return nil))
+
+           (let ((maskp (plusp (ldb (byte 1 7) (aref buf 1))))
+                 (data-length (ldb (byte 7 0) (aref buf 1))))
+             (cond
+               ((<= 0 data-length 125))
+               (t
+                (let ((end (if (= data-length 126) 2 8)))
+                  (read-sequence extended-buf stream :end end)
+                  (incf read-bytes end)
+                  (setf data-length
+                        (loop with length = 0
+                              for i from 0 to end
+                              do (incf length (+ (ash length 8) (aref extended-buf i)))
+                              finally (return length))))))
+             (when maskp
+               (incf data-length 4))
+             (let ((data (make-array (+ read-bytes data-length) :element-type '(unsigned-byte 8))))
+               (replace data buf :end2 2)
+               (unless (= read-bytes 2)
+                 (replace data extended-buf :start1 2 :end2 (- read-bytes 2)))
+               (handler-case
+                   (read-sequence data stream :start read-bytes)
+                 (error ()
+                   (return nil)))
+               (return data))))))))
 
 (defmethod start-connection ((client client))
   (unless (eq (ready-state client) :connecting)
@@ -65,7 +160,6 @@
                          ((string-equal (uri-scheme uri) "wss")
                           t)
                          (t (error "Invalid URI scheme: ~S" (uri-scheme uri)))))
-           (connect-fn (if secure #'as-ssl:tcp-ssl-connect #'as:tcp-connect))
            (http (make-http-response))
            (http-parser (make-parser http
                                      :first-line-callback
@@ -98,20 +192,39 @@
                                                         (find protocol (accept-protocols client) :test #'string=))
                                              (fail-handshake "Sec-WebSocket-Protocol mismatch"))
                                            (setf (protocol client) protocol))))))
-           (socket
-             (funcall connect-fn (uri-host uri) (uri-port uri)
-                      (lambda (sock data)
-                        (funcall http-parser data)
-                        (let ((callbacks (as::get-callbacks (as::socket-c sock))))
-                          (setf (getf callbacks (if secure :ssl-read-cb :read-cb))
-                                (lambda (sock data)
-                                  (declare (ignore sock))
-                                  (parse client data)))
-                          (as::save-callbacks (as::socket-c sock) callbacks))
-                        (open-connection client)))))
+           (stream (usocket:socket-stream
+                    (usocket:socket-connect (uri-host uri) (uri-port uri)
+                                            :element-type '(unsigned-byte 8))))
+           (stream (if secure
+                       #+websocket-driver-no-ssl
+                       (error "SSL not supported. Remove :websocket-driver-no-ssl from *features* to enable SSL.")
+                       #-websocket-driver-no-ssl
+                       (progn
+                         (cl+ssl:ensure-initialized)
+                         (setf (cl+ssl:ssl-check-verify-p) t)
+                         (let ((ctx (cl+ssl:make-context :verify-mode cl+ssl:+ssl-verify-peer+
+                                                         :verify-location :default)))
+                           ;; TODO: certificate files
+                           (cl+ssl:with-global-context (ctx :auto-free-p t)
+                             (cl+ssl:make-ssl-client-stream stream
+                                                            :hostname (uri-host uri)))))
+                       stream)))
 
-      (setf (socket client) socket)
-      (send-handshake-request client))))
+      (setf (socket client) stream)
+      (send-handshake-request client)
+      (funcall http-parser (read-until-crlf*2 stream))
+      (open-connection client)
+      (setf (slot-value client 'read-thread)
+            (bt:make-thread
+             (lambda ()
+               (loop for message = (read-websocket-message stream)
+                     while message
+                     do (parse client message))
+               (close-connection client))
+             :name "websocket client read thread"
+             :initial-bindings `((*standard-output* . ,*standard-output*)
+                                 (*error-output* . ,*error-output*))))
+      client)))
 
 (defmethod send ((client client) data &key start end type code callback)
   (let ((frame (compose-frame data
@@ -120,14 +233,15 @@
                               :type type
                               :code code
                               :masking t)))
-    (as:write-socket-data (socket client) frame
-                          :write-cb callback)))
+    (write-sequence frame (socket client))
+    (force-output (socket client))
+    (when callback
+      (funcall callback))))
 
 (defmethod send-handshake-request ((client client) &key callback)
   (let ((uri (quri:uri (url client)))
         (socket (socket client)))
-    (as:write-socket-data
-     socket
+    (write-sequence
      (with-fast-output (buffer)
        (labels ((octets (data)
                   (fast-write-sequence data buffer))
@@ -171,10 +285,17 @@
                   (crlf))
 
          (crlf)))
-     :write-cb callback)))
+     socket)
+    (force-output socket)
+    (when callback
+      (funcall callback))))
 
 (defmethod close-connection ((client client) &optional reason code)
-  (as:close-socket (socket client))
+  (ignore-errors (close (socket client)))
   (setf (ready-state client) :closed)
+  (let ((thread (slot-value client 'read-thread)))
+    (when thread
+      (bt:destroy-thread thread)
+      (setf (slot-value client 'read-thread) nil)))
   (emit :close client :code code :reason reason)
   t)

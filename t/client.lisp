@@ -19,9 +19,5 @@
                 (format t "~&ng~%")
                 (uiop:quit -1)))))
 
-(as:with-event-loop (:catch-app-errors t)
-  (wsd:start-connection *client*)
-
-  (wsd:send *client* "Hi")
-
-  (format *error-output* "~&Exiting~%"))
+(wsd:start-connection *client*)
+(wsd:send *client* "Hi")

@@ -8,8 +8,8 @@
   :author "Eitaro Fukamachi"
   :license "BSD 2-Clause"
   :depends-on (:websocket-driver-base
-               :cl-async
-               #-websocket-driver-no-ssl :cl-async-ssl
+               :usocket
+               #-websocket-driver-no-ssl :cl+ssl
                :fast-io
                :fast-websocket
                :fast-http
