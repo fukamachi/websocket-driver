@@ -40,16 +40,16 @@ The backend server can be changed by replacing `:wookie` by other servers.
 
 ### Client-side
 
-WebSocket client implementations uses [cl-async](http://orthecreedence.github.io/cl-async/) for asynchronous communication.
-
 ```common-lisp
 (ql:quickload :websocket-driver-client)
 
 (defvar *client* (wsd:make-client "ws://localhost:5000/echo"))
 
-(as:with-event-loop ()
-  (wsd:start-connection *client*)
-  (wsd:send *client* "Hi"))
+(wsd:start-connection *client*)
+(wsd:on :message *client*
+        (lambda (message)
+          (format t "~&Got: ~A~%" message)))
+(wsd:send *client* "Hi")
 ```
 
 ## APIs
@@ -176,4 +176,3 @@ Licensed under the BSD 2-Clause License.
 
 * [Clack](http://clacklisp.org)
 * [Event Emitter](https://github.com/fukamachi/event-emitter)
-* [cl-async](http://orthecreedence.github.io/cl-async/)
