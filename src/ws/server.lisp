@@ -9,12 +9,14 @@
                 #:compose-frame
                 #:error-code)
   (:import-from :clack.socket
-                #:set-read-callback
+                #:read-callback
                 #:write-sequence-to-socket
                 #:write-sequence-to-socket-buffer
                 #:write-byte-to-socket-buffer
                 #:flush-socket-buffer
-                #:close-socket)
+                #:close-socket
+                #:socket-async-p
+                #:socket-stream)
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence
@@ -64,9 +66,9 @@
       (return-from start-connection))
 
   (let ((socket (socket server)))
-    (set-read-callback socket
-                       (lambda (data &key (start 0) end)
-                         (parse server data :start start :end end)))
+    (setf (read-callback socket)
+          (lambda (data &key (start 0) end)
+            (parse server data :start start :end end)))
 
     (send-handshake-response server
                              :callback
@@ -74,7 +76,12 @@
                                (unless (eq (ready-state server) :closed)
                                  (open-connection server))))
 
-    (clack.socket:start-connection socket)))
+    (unless (clack.socket:socket-async-p socket)
+      (loop with stream = (socket-stream socket)
+            for message = (read-websocket-message stream)
+            while message
+            do (funcall (read-callback socket) message))
+      (clack.socket:close-socket socket))))
 
 (defmethod close-connection ((server server) &optional (reason "") (code (error-code :normal-closure)))
   (close-socket (socket server))

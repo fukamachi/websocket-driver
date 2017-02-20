@@ -33,7 +33,9 @@
            #:close-connection
            #:open-connection
            #:send-handshake-response
-           #:send-handshake-request))
+           #:send-handshake-request
+
+           #:read-websocket-message))
 (in-package :websocket-driver.ws.base)
 
 (defparameter +states+
@@ -192,3 +194,40 @@
 (defgeneric send-handshake-response (ws &key callback))
 
 (defgeneric send-handshake-request (ws &key callback))
+
+(defun read-websocket-message (stream)
+  (let ((buf (make-array 2 :element-type '(unsigned-byte 8)))
+        (extended-buf (make-array 8 :element-type '(unsigned-byte 8))))
+    (block nil
+      (tagbody retry
+         (let ((read-bytes (handler-case (read-sequence buf stream)
+                             (error ()
+                               ;; Retry when I/O timeout error
+                               (go retry)))))
+           (when (= read-bytes 0)
+             (return nil))
+
+           (let ((maskp (plusp (ldb (byte 1 7) (aref buf 1))))
+                 (data-length (ldb (byte 7 0) (aref buf 1))))
+             (cond
+               ((<= 0 data-length 125))
+               (t
+                (let ((end (if (= data-length 126) 2 8)))
+                  (read-sequence extended-buf stream :end end)
+                  (incf read-bytes end)
+                  (setf data-length
+                        (loop with length = 0
+                              for i from 0 to end
+                              do (incf length (+ (ash length 8) (aref extended-buf i)))
+                              finally (return length))))))
+             (when maskp
+               (incf data-length 4))
+             (let ((data (make-array (+ read-bytes data-length) :element-type '(unsigned-byte 8))))
+               (replace data buf :end2 2)
+               (unless (= read-bytes 2)
+                 (replace data extended-buf :start1 2 :end2 (- read-bytes 2)))
+               (handler-case
+                   (read-sequence data stream :start read-bytes)
+                 (error ()
+                   (return nil)))
+               (return data))))))))
