@@ -21,3 +21,4 @@
 
 (wsd:start-connection *client*)
 (wsd:send *client* "Hi")
+(sleep 1)
