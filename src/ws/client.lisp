@@ -180,10 +180,11 @@
       (setf (slot-value client 'read-thread)
             (bt:make-thread
              (lambda ()
-               (loop for frame = (read-websocket-frame stream)
-                     while frame
-                     do (parse client frame))
-               (close-connection client))
+               (unwind-protect
+                    (loop for frame = (read-websocket-frame stream)
+                          while frame
+                          do (parse client frame))
+                 (close-connection client)))
              :name "websocket client read thread"
              :initial-bindings `((*standard-output* . ,*standard-output*)
                                  (*error-output* . ,*error-output*))))
