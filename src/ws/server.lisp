@@ -78,9 +78,9 @@
 
     (unless (clack.socket:socket-async-p socket)
       (loop with stream = (socket-stream socket)
-            for message = (read-websocket-message stream)
-            while message
-            do (funcall (read-callback socket) message))
+            for frame = (read-websocket-frame stream)
+            while frame
+            do (funcall (read-callback socket) frame))
       (clack.socket:close-socket socket))))
 
 (defmethod close-connection ((server server) &optional (reason "") (code (error-code :normal-closure)))

@@ -35,7 +35,7 @@
            #:send-handshake-response
            #:send-handshake-request
 
-           #:read-websocket-message))
+           #:read-websocket-frame))
 (in-package :websocket-driver.ws.base)
 
 (defparameter +states+
@@ -195,7 +195,7 @@
 
 (defgeneric send-handshake-request (ws &key callback))
 
-(defun read-websocket-message (stream)
+(defun read-websocket-frame (stream)
   (let ((buf (make-array 2 :element-type '(unsigned-byte 8)))
         (extended-buf (make-array 8 :element-type '(unsigned-byte 8))))
     (block nil
