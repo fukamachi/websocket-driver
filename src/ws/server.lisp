@@ -3,8 +3,6 @@
   (:use :cl
         #:websocket-driver.ws.base
         #:websocket-driver.util)
-  (:import-from :event-emitter
-                #:emit)
   (:import-from :fast-websocket
                 #:compose-frame
                 #:error-code)
@@ -79,10 +77,12 @@
     (unless (clack.socket:socket-async-p socket)
       (unwind-protect
            (loop with stream = (socket-stream socket)
+                 while (open-stream-p stream)
                  for frame = (read-websocket-frame stream)
                  while frame
                  do (funcall (read-callback socket) frame))
-        (clack.socket:close-socket socket)))))
+        (close-connection server)
+        (setf (ready-state server) :closed)))))
 
 (defmethod close-connection ((server server) &optional (reason "") (code (error-code :normal-closure)))
   (close-socket (socket server))
