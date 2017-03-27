@@ -218,7 +218,7 @@
                   (setf data-length
                         (loop with length = 0
                               for i from 0 below end
-                              do (incf length (+ (ash length 8) (aref extended-buf i)))
+                              do (setf length (+ (ash length 8) (aref extended-buf i)))
                               finally (return length))))))
              (when maskp
                (incf data-length 4))
