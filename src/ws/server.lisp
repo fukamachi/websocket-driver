@@ -101,7 +101,7 @@
         (write-sequence-to-socket (socket server) frame
                                   :callback callback)
       (error ()
-        (close-connection server "Failed to send" (error-code :unexpected-condition))))))
+        (setf (ready-state server) :closed)))))
 
 (defmethod send-handshake-response ((server server) &key callback)
   (let ((socket (socket server))
