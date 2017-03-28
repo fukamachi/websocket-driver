@@ -97,8 +97,11 @@
                               :type type
                               :code code
                               :masking nil)))
-    (write-sequence-to-socket (socket server) frame
-                              :callback callback)))
+    (handler-case
+        (write-sequence-to-socket (socket server) frame
+                                  :callback callback)
+      (error ()
+        (close-connection server "Failed to send" (error-code :unexpected-condition))))))
 
 (defmethod send-handshake-response ((server server) &key callback)
   (let ((socket (socket server))
