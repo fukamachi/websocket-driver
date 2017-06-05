@@ -134,11 +134,14 @@
       (funcall (parser ws) data :start start :end end))))
 
 (defgeneric send (ws data &key start end type code callback))
-(defmethod send :around ((ws ws) data &rest args)
+(defmethod send :around ((ws ws) data &rest args &key callback &allow-other-keys)
   (when (eq (ready-state ws) :connecting)
     (return-from send
       (enqueue ws (cons data args))))
 
+  (when (eq (ready-state ws) :closing)
+    (funcall callback))
+  
   (unless (eq (ready-state ws) :open)
     (return-from send nil))
 
@@ -171,6 +174,8 @@
      t)
     (:open
      (call-next-method))
+    (:closing
+     (emit :close ws code reason))
     (otherwise nil)))
 
 (defgeneric open-connection (ws)
