@@ -112,7 +112,7 @@ Called when the socket becomes closed. The `CALLBACK` function takes `CODE` and 
 
 ```common-lisp
 (on :close ws
-    (lambda (code reason)
+    (lambda (&key code reason)
       (format t "Closed because '~A' (Code=~A)~%" reason code)))
 ```
 
