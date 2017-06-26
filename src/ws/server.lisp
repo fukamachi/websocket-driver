@@ -88,9 +88,10 @@
   (setf (ready-state server) :closing)
   (send server reason :type :close :code code
                       :callback
-                      (lambda ()
-                        (setf (ready-state server) :closed)
-                        (close-socket (socket server))))
+                      (let ((socket (socket server)))
+                        (lambda ()
+                          (setf (ready-state server) :closed)
+                          (close-socket socket))))
   t)
 
 (defmethod send ((server server) data &key start end type code callback)
