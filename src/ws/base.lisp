@@ -8,8 +8,6 @@
   (:import-from :event-emitter
                 #:emit
                 #:event-emitter)
-  (:import-from #:clack.socket
-                #:close-socket)
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence)

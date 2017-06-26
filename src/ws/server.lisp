@@ -12,6 +12,7 @@
                 #:write-sequence-to-socket-buffer
                 #:write-byte-to-socket-buffer
                 #:flush-socket-buffer
+                #:close-socket
                 #:socket-async-p
                 #:socket-stream)
   (:import-from :fast-io
