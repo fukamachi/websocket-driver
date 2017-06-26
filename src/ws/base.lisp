@@ -8,6 +8,8 @@
   (:import-from :event-emitter
                 #:emit
                 #:event-emitter)
+  (:import-from #:clack.socket
+                #:close-socket)
   (:import-from :fast-io
                 #:with-fast-output
                 #:fast-write-sequence)
@@ -169,6 +171,9 @@
      (setf (ready-state ws) :closed)
      (emit :close ws :code code :reason reason)
      t)
+    (:closing
+     (call-next-method)
+     (emit :close ws :code code :reason reason))
     (:open
      (call-next-method))
     (otherwise nil)))

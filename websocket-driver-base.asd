@@ -10,6 +10,7 @@
   :depends-on (:fast-websocket
                :fast-io
                :event-emitter
+               :clack-socket
                :ironclad
                :cl-base64
                :split-sequence
