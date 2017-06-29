@@ -9,8 +9,8 @@
   :license "BSD 2-Clause"
   :depends-on (:websocket-driver-base
                :fast-websocket
-               :clack-socket
                :fast-io
+               :clack-socket
                :ironclad
                :trivial-utf-8)
   :components ((:module "src"
