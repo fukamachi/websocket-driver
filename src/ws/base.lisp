@@ -95,7 +95,7 @@
                      (lambda (payload)
                        (let ((callback (gethash payload (ping-callbacks ws))))
                          (when callback
-                           (remhash payload (ping-callbacks ws)) 
+                           (remhash payload (ping-callbacks ws))
                            (funcall callback))))
                      :close-callback
                      (lambda (data &key code)
@@ -139,9 +139,9 @@
     (return-from send
       (enqueue ws (cons data args))))
 
-  (when (eq (ready-state ws) :closing)
+  (when (and (eq (ready-state ws) :closing) callback)
     (funcall callback))
-  
+
   (unless (eq (ready-state ws) :open)
     (return-from send nil))
 
