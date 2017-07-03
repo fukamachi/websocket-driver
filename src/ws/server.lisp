@@ -105,7 +105,8 @@
         (write-sequence-to-socket (socket server) frame
                                   :callback callback)
       (error ()
-        (setf (ready-state server) :closed)))))
+        (setf (ready-state server) :closed)
+        (emit :close ws)))))
 
 (defmethod send-handshake-response ((server server) &key callback)
   (let ((socket (socket server))

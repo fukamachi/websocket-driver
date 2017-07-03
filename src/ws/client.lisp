@@ -197,8 +197,11 @@
                               :type type
                               :code code
                               :masking t)))
-    (write-sequence frame (socket client))
-    (force-output (socket client))
+    (handler-case (progn
+                    (write-sequence frame (socket client))
+                    (force-output (socket client)))
+      (error ()
+        (close-connection client)))
     (when callback
       (funcall callback))))
 
