@@ -58,6 +58,6 @@
 (defun websocket-p (env)
   (let ((headers (getf env :headers)))
     (and (eq (getf env :request-method) :get)
-         (string-equal (gethash "connection" headers "") "upgrade")
+         (search "upgrade"  (gethash "connection" headers "") :test 'equalp)
          (string-equal (gethash "upgrade" headers "") "websocket")
          (eql (gethash "sec-websocket-version" headers) 13))))
