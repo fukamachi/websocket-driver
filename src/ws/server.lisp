@@ -102,11 +102,11 @@
                               :code code
                               :masking nil)))
     (handler-case
-        (write-sequence-to-socket (socket server) frame
-                                  :callback callback)
+	(write-sequence-to-socket (socket server) frame
+				  :callback callback)
       (error ()
         (setf (ready-state server) :closed)
-        (emit :close ws)))))
+	(wsd:emit :close server :code 1006 :reason "websocket connection closed")))))
 
 (defmethod send-handshake-response ((server server) &key callback)
   (let ((socket (socket server))
