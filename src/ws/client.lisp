@@ -114,9 +114,8 @@
     (return-from start-connection))
 
   (flet ((fail-handshake (format-control &rest format-arguments)
-           (error 'protocol-error
-                  :format-control (format nil "Error during WebSocket handshake:~%  ~A" format-control)
-                  :format-arguments format-arguments)))
+           (error (format nil "Error during WebSocket handshake:~%  ~A"
+                          (apply #'format nil format-control format-arguments)))))
     (let* ((uri (quri:uri (url client)))
            (secure (cond ((string-equal (uri-scheme uri) "ws")
                           nil)
