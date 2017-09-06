@@ -47,9 +47,10 @@
 
   ;; Sec-Websocket-Version must be "13"
   (let ((ws-version (gethash "sec-websocket-version"
-                             (headers server)
-                             "")))
+                             (headers server))))
     (etypecase ws-version
+      (null
+       (error "No Sec-WebSocket-Version header"))
       (string
        (unless (find "13" (split-by-comma ws-version)
                      :test #'string=)
