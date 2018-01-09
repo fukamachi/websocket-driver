@@ -109,7 +109,7 @@
 
      eof)))
 
-(defmethod start-connection ((client client))
+(defmethod start-connection ((client client) &key (verify t))
   (unless (eq (ready-state client) :connecting)
     (return-from start-connection))
 
@@ -164,12 +164,15 @@
                        (progn
                          (cl+ssl:ensure-initialized)
                          (setf (cl+ssl:ssl-check-verify-p) t)
-                         (let ((ctx (cl+ssl:make-context :verify-mode cl+ssl:+ssl-verify-peer+
+                         (let ((ctx (cl+ssl:make-context :verify-mode (if verify
+                                                                          cl+ssl:+ssl-verify-peer+
+                                                                          cl+ssl:+ssl-verify-none+)
                                                          :verify-location :default)))
                            ;; TODO: certificate files
                            (cl+ssl:with-global-context (ctx :auto-free-p t)
                              (cl+ssl:make-ssl-client-stream stream
-                                                            :hostname (uri-host uri)))))
+                                                            :hostname (uri-host uri)
+                                                            :verify (if verify :optional nil)))))
                        stream)))
 
       (setf (socket client) stream)

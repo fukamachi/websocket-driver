@@ -126,7 +126,7 @@
             (:closing    2)
             (:closed     3)))))
 
-(defgeneric start-connection (ws))
+(defgeneric start-connection (ws &key &allow-other-keys))
 
 (defgeneric parse (ws data &key start end)
   (:method (ws data &key start end)

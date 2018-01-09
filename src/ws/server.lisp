@@ -60,7 +60,7 @@
          (error "Unsupported WebSocket version: ~S" ws-version)))))
   (setf (version server) "hybi-13"))
 
-(defmethod start-connection ((server server))
+(defmethod start-connection ((server server) &key)
   (unless (eq (ready-state server) :connecting)
       (return-from start-connection))
 
