@@ -50,6 +50,7 @@ The backend server can be changed by replacing `:wookie` by other servers.
         (lambda (message)
           (format t "~&Got: ~A~%" message)))
 (wsd:send *client* "Hi")
+(wsd:close-connection *client*)
 ```
 
 ## APIs
