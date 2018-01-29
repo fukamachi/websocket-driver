@@ -26,6 +26,7 @@
                 #:uri-scheme
                 #:uri-host
                 #:uri-port)
+  (:import-from :uiop)
   (:export #:client))
 (in-package :websocket-driver.ws.client)
 
@@ -109,7 +110,7 @@
 
      eof)))
 
-(defmethod start-connection ((client client) &key (verify t))
+(defmethod start-connection ((client client) &key (verify t) (ca-path nil))
   (unless (eq (ready-state client) :connecting)
     (return-from start-connection))
 
@@ -167,7 +168,9 @@
                          (let ((ctx (cl+ssl:make-context :verify-mode (if verify
                                                                           cl+ssl:+ssl-verify-peer+
                                                                           cl+ssl:+ssl-verify-none+)
-                                                         :verify-location :default)))
+                                                         :verify-location (if ca-path
+                                                                              (uiop:native-namestring ca-path)
+                                                                              :default))))
                            ;; TODO: certificate files
                            (cl+ssl:with-global-context (ctx :auto-free-p t)
                              (cl+ssl:make-ssl-client-stream stream
