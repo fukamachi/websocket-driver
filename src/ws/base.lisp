@@ -170,11 +170,11 @@
   (case (ready-state ws)
     (:connecting
      (setf (ready-state ws) :closed)
-     (emit :close ws :code code :reason reason)
+     (emit :close ws code reason)
      t)
     (:closing
      (call-next-method)
-     (emit :close ws :code code :reason reason))
+     (emit :close ws code reason))
     (:open
      (call-next-method))
     (:closing
