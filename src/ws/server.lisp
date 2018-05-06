@@ -101,7 +101,8 @@
 (cffi:defcallback send-from-main-thread :void ((evloop :pointer) (listener :pointer) (events :int))
   (declare (ignore evloop events))
   
-  (let ((server (gethash listener *listener-to-server*)))
+  (let ((server (gethash (cffi:pointer-address listener)
+                         *listener-to-server*)))
     ;; Now we'll send all queued messages to the client and will
     ;; do this from the thread where the main event loop lives.
     (loop with queue = (get-queue server)
@@ -177,7 +178,8 @@
                    :callback callback)
              queue))
   (let* ((listener (get-dequeue-async server)))
-    (setf (gethash listener *listener-to-server*)
+    (setf (gethash (cffi:pointer-address listener)
+                   *listener-to-server*)
           server)
     (lev:ev-async-send (get-event-loop server)
                        listener)))
