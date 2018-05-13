@@ -178,7 +178,7 @@
     (:open
      (call-next-method))
     (:closing
-     (emit :close ws code reason))
+     (emit :close ws :code code :reason reason))
     (otherwise nil)))
 
 (defgeneric open-connection (ws)
