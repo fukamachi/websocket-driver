@@ -134,16 +134,20 @@
       (funcall (parser ws) data :start start :end end))))
 
 (defgeneric send (ws data &key start end type code callback))
-(defmethod send :around ((ws ws) data &rest args &key callback &allow-other-keys)
+(defmethod send :around ((ws ws) data &rest args &key type callback &allow-other-keys)
   (when (eq (ready-state ws) :connecting)
     (return-from send
       (enqueue ws (cons data args))))
 
-  (when (and (eq (ready-state ws) :closing) callback)
-    (funcall callback))
+  ; allow close packets through when we are trying to close the connection
+  (unless (and (eq type :close)
+               (eq (ready-state ws) :closing))
 
-  (unless (eq (ready-state ws) :open)
-    (return-from send nil))
+    (when (and (eq (ready-state ws) :closing) callback)
+      (funcall callback))
+
+    (unless (eq (ready-state ws) :open)
+      (return-from send nil)))
 
   (call-next-method))
 
