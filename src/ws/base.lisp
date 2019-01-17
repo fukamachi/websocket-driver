@@ -114,7 +114,7 @@
                      :error-callback
                      (lambda (code reason)
                        (emit :error ws reason)
-                       (send-close-frame ws reason code)
+                       (respond-to-close-frame ws reason code)
                        (setf (ws-stage (ws-parse ws)) 0)))))
 
 (defgeneric ready-state (ws)
