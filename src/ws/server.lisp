@@ -23,7 +23,14 @@
                 #:ascii-string-to-byte-array)
   (:import-from :trivial-utf-8
                 #:string-to-utf-8-bytes)
-  (:export #:server))
+  (:import-from #:woo.queue
+                #:make-queue
+                #:queue-empty-p
+                #:enqueue
+                #:dequeue)
+  (:export #:server
+           #:woo-server
+           #:send-from-thread))
 (in-package :websocket-driver.ws.server)
 
 (defclass server (ws)
@@ -34,6 +41,16 @@
    (require-masking :initarg :require-masking
                     :initform t
                     :accessor require-masking)))
+
+
+(defclass woo-server (server)
+  ((event-loop :initform woo::*evloop*
+               :reader get-event-loop)
+   (async-queue :initform (make-queue)
+                :reader get-queue)
+   (dequeue-async :initform (cffi:foreign-alloc '(:struct lev:ev-async))
+                  :reader get-dequeue-async)))
+
 
 (defmethod initialize-instance :after ((server server) &key)
   (let ((protocols (accept-protocols server))
@@ -60,6 +77,40 @@
          (error "Unsupported WebSocket version: ~S" ws-version)))))
   (setf (version server) "hybi-13"))
 
+
+(defmethod initialize-instance :after ((server woo-server) &key)
+  (lev:ev-async-init (get-dequeue-async server)
+                     'send-from-main-thread)
+  (lev:ev-async-start (get-event-loop server)
+                      (get-dequeue-async server))
+  
+  ;; TODO: also, we need to put this code
+  ;;       (cffi:foreign-free dequeue-async)
+  ;;       somewhere, to free resource.
+  )
+
+
+;; TODO: I didn't find a way to access `woo-server' instance
+;;       which put data into the queue, from send-from-main-thread
+;;       callback.
+;;       Here we probably will have a memory leak. Need advice
+;;       how to solve this problem.
+(defvar *listener-to-server* (make-hash-table))
+
+
+(cffi:defcallback send-from-main-thread :void ((evloop :pointer) (listener :pointer) (events :int))
+  (declare (ignore evloop events))
+  
+  (let ((server (gethash (cffi:pointer-address listener)
+                         *listener-to-server*)))
+    ;; Now we'll send all queued messages to the client and will
+    ;; do this from the thread where the main event loop lives.
+    (loop with queue = (get-queue server)
+          until (queue-empty-p queue)
+          for args = (dequeue queue)
+          do (apply #'send server args))))
+
+
 (defmethod start-connection ((server server) &key)
   (unless (eq (ready-state server) :connecting)
       (return-from start-connection))
@@ -85,6 +136,7 @@
         (close-connection server)
         (setf (ready-state server) :closed)))))
 
+
 (defmethod close-connection ((server server) &optional (reason "") (code (error-code :normal-closure)))
   (setf (ready-state server) :closing)
   (send server reason :type :close :code code
@@ -95,6 +147,7 @@
                           (close-socket socket))))
   t)
 
+
 (defmethod send ((server server) data &key start end type code callback)
   (let ((frame (compose-frame data
                               :start start
@@ -104,10 +157,33 @@
                               :masking nil)))
     (handler-case
 	(write-sequence-to-socket (socket server) frame
-				  :callback callback)
+                                  :callback callback)
       (error ()
         (setf (ready-state server) :closed)
 	(wsd:emit :close server :code 1006 :reason "websocket connection closed")))))
+
+
+;; TODO: I've made this as a separate method, but ideally, all code
+;;       from `send' method should be moved to a separate function
+;;       like `inner-send' and make `send' method work differently for usual
+;;       `server' class and `woo-server' class.
+;;       I need advice here too.
+(defmethod send-from-thread ((server woo-server) data &key start end type code callback)
+  (let ((queue (get-queue server)))
+    (enqueue (list data
+                   :start start
+                   :end end
+                   :type type
+                   :code code
+                   :callback callback)
+             queue))
+  (let* ((listener (get-dequeue-async server)))
+    (setf (gethash (cffi:pointer-address listener)
+                   *listener-to-server*)
+          server)
+    (lev:ev-async-send (get-event-loop server)
+                       listener)))
+
 
 (defmethod send-handshake-response ((server server) &key callback)
   (let ((socket (socket server))
