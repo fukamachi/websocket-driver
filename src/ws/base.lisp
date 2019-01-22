@@ -4,7 +4,8 @@
   (:import-from :fast-websocket
                 #:make-ws
                 #:ws-stage
-                #:make-parser)
+                #:make-parser
+                #:error-code)
   (:import-from :event-emitter
                 #:emit
                 #:event-emitter)
@@ -174,7 +175,7 @@
 
 (defgeneric close-connection (ws &optional reason code))
 
-(defmethod close-connection :around ((ws ws) &optional reason code)
+(defmethod close-connection :around ((ws ws) &optional (reason "") (code (error-code :normal-closure)))
   (case (ready-state ws)
     (:connecting
      (setf (ready-state ws) :closed)

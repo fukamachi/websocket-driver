@@ -4,8 +4,7 @@
         #:websocket-driver.ws.base
         #:websocket-driver.util)
   (:import-from :fast-websocket
-                #:compose-frame
-                #:error-code)
+                #:compose-frame)
   (:import-from :clack.socket
                 #:read-callback
                 #:write-sequence-to-socket
@@ -85,7 +84,7 @@
         (close-connection server)
         (setf (ready-state server) :closed)))))
 
-(defmethod close-connection ((server server) &optional (reason "") (code (error-code :normal-closure)))
+(defmethod close-connection ((server server) &optional reason code)
   (setf (ready-state server) :closed)
   (close-socket (socket server))
   t)
