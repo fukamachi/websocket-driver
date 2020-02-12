@@ -11,7 +11,7 @@
                :fast-websocket
                :fast-io
                :clack-socket
-               :ironclad
+               :babel
                :trivial-utf-8)
   :components ((:module "src"
                 :components

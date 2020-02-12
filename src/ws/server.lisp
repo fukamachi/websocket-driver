@@ -19,8 +19,6 @@
                 #:with-fast-output
                 #:fast-write-sequence
                 #:fast-write-byte)
-  (:import-from :ironclad
-                #:ascii-string-to-byte-array)
   (:import-from :trivial-utf-8
                 #:string-to-utf-8-bytes)
   (:export #:server))
@@ -119,11 +117,11 @@
     (labels ((octets (data)
                (write-sequence-to-socket-buffer socket data))
              (ascii-string (data)
-               (octets (ascii-string-to-byte-array data)))
+               (octets (babel:string-to-octets data)))
              (crlf ()
-               (octets #.(ascii-string-to-byte-array (format nil "~C~C" #\Return #\Newline)))))
+               (octets #.(babel:string-to-octets (format nil "~C~C" #\Return #\Newline)))))
       (octets
-       #.(ascii-string-to-byte-array
+       #.(babel:string-to-octets
           (with-output-to-string (s)
             (format s "HTTP/1.1 101 Switching Protocols~C~C" #\Return #\Newline)
             (format s "Upgrade: websocket~C~C" #\Return #\Newline)
@@ -136,7 +134,7 @@
       (let ((protocol (protocol server)))
         (when protocol
           (octets
-           #.(ascii-string-to-byte-array "Sec-WebSocket-Protocol: "))
+           #.(babel:string-to-octets "Sec-WebSocket-Protocol: "))
           (ascii-string protocol)
           (crlf)))
 
@@ -144,7 +142,7 @@
             do (ascii-string
                 (string-capitalize name))
                (octets
-                #.(ascii-string-to-byte-array ": "))
+                #.(babel:string-to-octets ": "))
                (ascii-string value)
                (crlf))
 
