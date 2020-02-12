@@ -19,8 +19,6 @@
                 #:usb8-array-to-base64-string)
   (:import-from :trivial-utf-8
                 #:string-to-utf-8-bytes)
-  (:import-from :ironclad
-                #:ascii-string-to-byte-array)
   (:import-from :quri
                 #:uri
                 #:uri-scheme
@@ -218,9 +216,9 @@
        (labels ((octets (data)
                   (fast-write-sequence data buffer))
                 (ascii-string (data)
-                  (octets (ascii-string-to-byte-array data)))
+                  (octets (babel:string-to-octets data)))
                 (crlf ()
-                  (octets #.(ascii-string-to-byte-array (format nil "~C~C" #\Return #\Newline)))))
+                  (octets #.(babel:string-to-octets (format nil "~C~C" #\Return #\Newline)))))
          (ascii-string
           (format nil "GET ~:[/~;~:*~A~]~:[~;~:*?~A~] HTTP/1.1~C~C"
                   (quri:uri-path uri)
@@ -231,7 +229,7 @@
                   (quri:uri-authority uri)
                   #\Return #\Newline))
          (octets
-          #.(ascii-string-to-byte-array
+          #.(babel:string-to-octets
              (with-output-to-string (s)
                (format s "Upgrade: websocket~C~C" #\Return #\Newline)
                (format s "Connection: Upgrade~C~C" #\Return #\Newline))))
@@ -240,7 +238,7 @@
                   (key client)
                   #\Return #\Newline))
          (octets
-          #.(ascii-string-to-byte-array
+          #.(babel:string-to-octets
              (format nil "Sec-WebSocket-Version: 13~C~C" #\Return #\Newline)))
          (when (accept-protocols client)
            (ascii-string
@@ -252,7 +250,7 @@
                do (ascii-string
                    (string-capitalize name))
                   (octets
-                   #.(ascii-string-to-byte-array ": "))
+                   #.(babel:string-to-octets ": "))
                   (ascii-string value)
                   (crlf))
 
