@@ -1,4 +1,9 @@
 (in-package :cl-user)
+
+#+(and lispworks (not websocket-driver-no-ssl))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (require "comm"))
+
 (defpackage websocket-driver.ws.client
   (:use :cl
         #:websocket-driver.ws.base
@@ -161,7 +166,11 @@
            (stream (if secure
                        #+websocket-driver-no-ssl
                        (error "SSL not supported. Remove :websocket-driver-no-ssl from *features* to enable SSL.")
-                       #-websocket-driver-no-ssl
+                       #+(and (not websocket-driver-no-ssl) lispworks)
+                       (progn
+                         (comm:attach-ssl stream :ssl-side :client)
+                         stream)
+                       #-(or websocket-driver-no-ssl lispworks)
                        (progn
                          (cl+ssl:ensure-initialized)
                          (setf (cl+ssl:ssl-check-verify-p) t)

@@ -9,7 +9,7 @@
   :license "BSD 2-Clause"
   :depends-on (:websocket-driver-base
                :usocket
-               #-websocket-driver-no-ssl :cl+ssl
+               #-(or websocket-driver-no-ssl lispworks) :cl+ssl
                :fast-io
                :fast-websocket
                :fast-http
