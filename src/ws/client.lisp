@@ -17,8 +17,6 @@
                 #:http-status)
   (:import-from :cl-base64
                 #:usb8-array-to-base64-string)
-  (:import-from :trivial-utf-8
-                #:string-to-utf-8-bytes)
   (:import-from :ironclad
                 #:ascii-string-to-byte-array)
   (:import-from :quri

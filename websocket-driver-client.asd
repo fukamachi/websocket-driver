@@ -14,7 +14,6 @@
                :fast-websocket
                :fast-http
                :cl-base64
-               :trivial-utf-8
                :ironclad
                :quri)
   :components ((:module "src"
