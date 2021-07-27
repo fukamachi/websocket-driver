@@ -21,8 +21,6 @@
                 #:fast-write-byte)
   (:import-from :ironclad
                 #:ascii-string-to-byte-array)
-  (:import-from :trivial-utf-8
-                #:string-to-utf-8-bytes)
   (:export #:server))
 (in-package :websocket-driver.ws.server)
 
