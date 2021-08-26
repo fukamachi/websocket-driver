@@ -11,7 +11,7 @@
                :fast-websocket
                :fast-io
                :clack-socket
-               :ironclad)
+               :babel)
   :components ((:module "src"
                 :components
                 ((:file "server" :depends-on ("ws/server"))

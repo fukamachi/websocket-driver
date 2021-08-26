@@ -10,7 +10,7 @@
   :depends-on (:fast-websocket
                :fast-io
                :event-emitter
-               :ironclad
+               :sha1
                :cl-base64
                :split-sequence
                :bordeaux-threads)

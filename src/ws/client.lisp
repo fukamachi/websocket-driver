@@ -17,8 +17,8 @@
                 #:http-status)
   (:import-from :cl-base64
                 #:usb8-array-to-base64-string)
-  (:import-from :ironclad
-                #:ascii-string-to-byte-array)
+  (:import-from :babel
+                #:string-to-octets)
   (:import-from :quri
                 #:uri
                 #:uri-scheme
@@ -216,9 +216,10 @@
        (labels ((octets (data)
                   (fast-write-sequence data buffer))
                 (ascii-string (data)
-                  (octets (ascii-string-to-byte-array data)))
+                  (octets (string-to-octets data :encoding :ascii)))
                 (crlf ()
-                  (octets #.(ascii-string-to-byte-array (format nil "~C~C" #\Return #\Newline)))))
+                  (octets #.(string-to-octets (format nil "~C~C" #\Return #\Newline)
+                                              :encoding :ascii))))
          (ascii-string
           (format nil "GET ~:[/~;~:*~A~]~:[~;~:*?~A~] HTTP/1.1~C~C"
                   (quri:uri-path uri)
@@ -229,17 +230,19 @@
                   (quri:uri-authority uri)
                   #\Return #\Newline))
          (octets
-          #.(ascii-string-to-byte-array
+          #.(string-to-octets
              (with-output-to-string (s)
                (format s "Upgrade: websocket~C~C" #\Return #\Newline)
-               (format s "Connection: Upgrade~C~C" #\Return #\Newline))))
+               (format s "Connection: Upgrade~C~C" #\Return #\Newline))
+             :encoding :ascii))
          (ascii-string
           (format nil "Sec-WebSocket-Key: ~A~C~C"
                   (key client)
                   #\Return #\Newline))
          (octets
-          #.(ascii-string-to-byte-array
-             (format nil "Sec-WebSocket-Version: 13~C~C" #\Return #\Newline)))
+          #.(string-to-octets
+             (format nil "Sec-WebSocket-Version: 13~C~C" #\Return #\Newline)
+             :encoding :ascii))
          (when (accept-protocols client)
            (ascii-string
             (format nil "Sec-WebSocket-Protocol: ~{~A~^, ~}~C~C"
@@ -250,7 +253,7 @@
                do (ascii-string
                    (string-capitalize name))
                   (octets
-                   #.(ascii-string-to-byte-array ": "))
+                   #.(string-to-octets ": " :encoding :ascii))
                   (ascii-string value)
                   (crlf))
 
