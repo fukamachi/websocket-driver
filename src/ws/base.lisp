@@ -4,7 +4,8 @@
   (:import-from :fast-websocket
                 #:make-ws
                 #:ws-stage
-                #:make-parser)
+                #:make-parser
+                #:error-code)
   (:import-from :event-emitter
                 #:emit
                 #:event-emitter)
@@ -73,12 +74,16 @@
    (parse-lock :initform (make-recursive-lock)
                :reader parse-lock)))
 
-(defun send-close-frame (ws reason code)
+(defun respond-to-close-frame (ws reason code)
   (setf (ready-state ws) :closing)
   (send ws reason :type :close :code code
                   :callback
                   (lambda ()
                     (close-connection ws reason code))))
+
+(defun initiate-close-frame (ws reason code)
+  (setf (ready-state ws) :closing)
+  (send ws reason :type :close :code code))
 
 (defmethod initialize-instance :after ((ws ws) &key)
   (setf (parser ws)
@@ -102,7 +107,7 @@
                        (case (ready-state ws)
                          ;; closing request by the other peer
                          (:open
-                          (send-close-frame ws data code))
+                          (respond-to-close-frame ws data code))
                          ;; probably the response for a 'close' frame
                          (otherwise
                           (close-connection ws data code)))
@@ -110,7 +115,7 @@
                      :error-callback
                      (lambda (code reason)
                        (emit :error ws reason)
-                       (send-close-frame ws reason code)
+                       (respond-to-close-frame ws reason code)
                        (setf (ws-stage (ws-parse ws)) 0)))))
 
 (defgeneric ready-state (ws)
@@ -170,7 +175,7 @@
 
 (defgeneric close-connection (ws &optional reason code))
 
-(defmethod close-connection :around ((ws ws) &optional reason code)
+(defmethod close-connection :around ((ws ws) &optional (reason "") (code (error-code :normal-closure)))
   (case (ready-state ws)
     (:connecting
      (setf (ready-state ws) :closed)
@@ -180,7 +185,8 @@
      (call-next-method)
      (emit :close ws :code code :reason reason))
     (:open
-     (call-next-method))
+     (initiate-close-frame ws reason code)
+     t)
     (:closing
      (emit :close ws :code code :reason reason))
     (otherwise nil)))

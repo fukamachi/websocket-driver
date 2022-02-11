@@ -271,5 +271,4 @@
       (unless (eq (bt:current-thread) thread)
         (bt:destroy-thread thread))
       (setf (slot-value client 'read-thread) nil)))
-  (emit :close client :code code :reason reason)
   t)
