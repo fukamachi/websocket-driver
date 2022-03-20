@@ -39,7 +39,8 @@
    (require-masking :initarg :require-masking
                     :initform nil
                     :accessor require-masking)
-   (read-thread :initform nil)))
+   (read-thread :initform nil
+				:accessor read-thread)))
 
 (defun generate-key ()
   (let ((key (make-array 16 :element-type '(unsigned-byte 8))))
@@ -180,7 +181,7 @@
       (send-handshake-request client)
       (funcall http-parser (read-until-crlf*2 stream))
       (open-connection client)
-      (setf (slot-value client 'read-thread)
+      (setf (read-thread client)
             (bt:make-thread
              (lambda ()
                (unwind-protect
@@ -264,12 +265,11 @@
       (funcall callback))))
 
 (defmethod close-connection ((client client) &optional reason code)
-  (ignore-errors (close (socket client)))
   (setf (ready-state client) :closed)
-  (let ((thread (slot-value client 'read-thread)))
+  (let ((thread (read-thread client)))
     (when thread
       (unless (eq (bt:current-thread) thread)
         (bt:destroy-thread thread))
-      (setf (slot-value client 'read-thread) nil)))
+      (setf (read-thread client) nil)))
   (emit :close client :code code :reason reason)
   t)
