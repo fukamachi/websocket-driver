@@ -73,6 +73,10 @@
    (parse-lock :initform (make-recursive-lock)
                :reader parse-lock)))
 
+(defun send-close-frame (ws reason code)
+  (setf (ready-state ws) :closing)
+  (send ws reason :type :close :code code))
+
 (defmethod initialize-instance :after ((ws ws) &key)
   (setf (parser ws)
         (make-parser (ws-parse ws)
@@ -95,7 +99,7 @@
                        (case (ready-state ws)
                          ;; closing request by the other peer
                          (:open
-                           (setf (ready-state ws) :closing))
+                          (send-close-frame ws data code))
                          ;; probably the response for a 'close' frame
                          (otherwise
                           (close-connection ws data code)))
