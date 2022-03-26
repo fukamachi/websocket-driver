@@ -265,6 +265,7 @@
       (funcall callback))))
 
 (defmethod close-connection ((client client) &optional reason code)
+  (ignore-errors (close (socket client)))
   (setf (ready-state client) :closed)
   (let ((thread (read-thread client)))
     (when thread
