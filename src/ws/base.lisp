@@ -75,10 +75,7 @@
 
 (defun send-close-frame (ws reason code)
   (setf (ready-state ws) :closing)
-  (send ws reason :type :close :code code
-                  :callback
-                  (lambda ()
-                    (close-connection ws reason code))))
+  (send ws reason :type :close :code code))
 
 (defmethod initialize-instance :after ((ws ws) &key)
   (setf (parser ws)
