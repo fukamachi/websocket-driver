@@ -26,3 +26,13 @@
                                                 (server-http-handler env))))
                                         :server :woo
                                         :port 5000))
+
+(defparameter *client* (wsd:make-client "ws://127.0.0.1:5000"))
+
+(wsd:start-connection *client*)
+(wsd:on :message *client*
+        (lambda (message)
+          (format t "~&Got: ~A~%" message)))
+(wsd:send *client* "Hi")
+(wsd:close-connection *client*)
+(clack:stop *handler*)
