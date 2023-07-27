@@ -185,9 +185,10 @@
             (bt:make-thread
              (lambda ()
                (unwind-protect
-                    (loop for frame = (read-websocket-frame stream)
-                          while frame
-                          do (parse client frame))
+                    (loop until (eq (ready-state client) :closed)
+                          do (when (listen (socket client))
+                               (parse client (read-websocket-frame (socket client))))
+                             (sleep 0.01))
                  (close-connection client)))
              :name "websocket client read thread"
              :initial-bindings `((*standard-output* . ,*standard-output*)
@@ -269,8 +270,6 @@
   (setf (ready-state client) :closed)
   (let ((thread (read-thread client)))
     (when thread
-      (unless (eq (bt:current-thread) thread)
-        (bt:destroy-thread thread))
       (setf (read-thread client) nil)))
   (emit :close client :code code :reason reason)
   t)
