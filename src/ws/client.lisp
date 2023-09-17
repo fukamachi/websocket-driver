@@ -182,7 +182,7 @@
       (funcall http-parser (read-until-crlf*2 stream))
       (open-connection client)
       (setf (read-thread client)
-            (bt:make-thread
+            (bt2:make-thread
              (lambda ()
                (unwind-protect
                     (loop until (eq (ready-state client) :closed)
