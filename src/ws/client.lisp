@@ -40,7 +40,7 @@
                     :initform nil
                     :accessor require-masking)
    (read-thread :initform nil
-				:accessor read-thread)))
+		:accessor read-thread)))
 
 (defun generate-key ()
   (let ((key (make-array 16 :element-type '(unsigned-byte 8))))
@@ -185,10 +185,9 @@
             (bt2:make-thread
              (lambda ()
                (unwind-protect
-                    (loop until (eq (ready-state client) :closed)
-                          do (when (listen (socket client))
-                               (parse client (read-websocket-frame (socket client))))
-                             (sleep 0.01))
+		    (loop for frame = (read-websocket-frame stream)
+                          while frame
+                          do (parse client frame))
                  (close-connection client)))
              :name "websocket client read thread"
              :initial-bindings `((*standard-output* . ,*standard-output*)
@@ -270,6 +269,9 @@
   (setf (ready-state client) :closed)
   (let ((thread (read-thread client)))
     (when thread
+      (if (and (bt2::threadp thread)
+	       (bt2:thread-alive-p thread))
+	  (bt2::destroy-thread thread))
       (setf (read-thread client) nil)))
   (emit :close client :code code :reason reason)
   t)
