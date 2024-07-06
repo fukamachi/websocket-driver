@@ -270,7 +270,8 @@
   (let ((thread (read-thread client)))
     (when thread
       (if (and (bt2::threadp thread)
-	       (bt2:thread-alive-p thread))
+	       (bt2::thread-alive-p thread)
+	       (not (eq (bt2:current-thread) thread)))
 	  (bt2::destroy-thread thread))
       (setf (read-thread client) nil)))
   (emit :close client :code code :reason reason)
