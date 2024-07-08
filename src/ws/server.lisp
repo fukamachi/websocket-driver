@@ -60,7 +60,7 @@
 
 (defmethod start-connection ((server server) &key)
   (unless (eq (ready-state server) :connecting)
-      (return-from start-connection))
+    (return-from start-connection))
 
   (let ((socket (socket server)))
     (setf (read-callback socket)
@@ -81,7 +81,8 @@
                  while frame
                  do (funcall (read-callback socket) frame))
         (close-connection server)
-        (setf (ready-state server) :closed)))))
+        (setf (ready-state server) :closed)
+        (wsd:emit :close server :code 1006 :reason "websocket connection closed")))))
 
 (defmethod close-connection ((server server) &optional (reason "") (code (error-code :normal-closure)))
   (setf (ready-state server) :closing)
@@ -101,11 +102,11 @@
                               :code code
                               :masking nil)))
     (handler-case
-	(write-sequence-to-socket (socket server) frame
-				  :callback callback)
+        (write-sequence-to-socket (socket server) frame
+                                  :callback callback)
       (error ()
         (setf (ready-state server) :closed)
-	(wsd:emit :close server :code 1006 :reason "websocket connection closed")))))
+        (wsd:emit :close server :code 1006 :reason "websocket connection closed")))))
 
 (defmethod send-handshake-response ((server server) &key callback)
   (let ((socket (socket server))
