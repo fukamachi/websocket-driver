@@ -1,5 +1,5 @@
 (in-package :cl-user)
-(defpackage websocket-driver
+(uiop:define-package websocket-driver
   (:nicknames :wsd)
   (:use :cl)
   (:import-from :websocket-driver.ws.base
