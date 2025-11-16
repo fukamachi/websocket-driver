@@ -204,10 +204,18 @@
         (extended-buf (make-array 8 :element-type '(unsigned-byte 8))))
     (block nil
       (tagbody retry
-         (let ((read-bytes (handler-case (read-sequence buf stream)
+         (let ((read-bytes (handler-case 
+                               (read-sequence buf stream)
                              (error ()
-                               ;; Retry when I/O timeout error
-                               (go retry)))))
+                               ;; Check if stream is still open before retrying
+                               ;; If stream is closed, return nil instead of infinite retry
+                               (cond
+                                 ((not (open-stream-p stream))
+                                  ;; Stream closed - stop reading
+                                  (return nil))
+                                 (t
+                                  ;; I/O timeout or other transient error - retry
+                                  (go retry)))))))
            (when (= read-bytes 0)
              (return nil))
 
