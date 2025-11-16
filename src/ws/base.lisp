@@ -206,7 +206,7 @@
       (tagbody retry
          (let ((read-bytes (handler-case 
                                (read-sequence buf stream)
-                             (error (e)
+                             (error ()
                                ;; Check if stream is still open before retrying
                                ;; If stream is closed, return nil instead of infinite retry
                                (cond
