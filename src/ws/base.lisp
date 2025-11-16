@@ -215,7 +215,6 @@
                                   (return nil))
                                  (t
                                   ;; I/O timeout or other transient error - retry
-                                  (declare (ignore e))
                                   (go retry)))))))
            (when (= read-bytes 0)
              (return nil))
