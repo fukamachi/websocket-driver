@@ -201,21 +201,21 @@
 
 (defun read-websocket-frame (stream)
   (let ((buf (make-array 2 :element-type '(unsigned-byte 8)))
-        (extended-buf (make-array 8 :element-type '(unsigned-byte 8))))
+        (extended-buf (make-array 8 :element-type '(unsigned-byte 8)))
+        (read-seq-count 0))
     (block nil
       (tagbody retry
-         (let ((read-bytes (handler-case 
-                               (read-sequence buf stream)
+         (let ((read-bytes (handler-case (read-sequence buf stream)
                              (error ()
-                               ;; Check if stream is still open before retrying
-                               ;; If stream is closed, return nil instead of infinite retry
-                               (cond
-                                 ((not (open-stream-p stream))
-                                  ;; Stream closed - stop reading
-                                  (return nil))
-                                 (t
-                                  ;; I/O timeout or other transient error - retry
-                                  (go retry)))))))
+                               (incf read-seq-count)
+			       ;; If the stream is already closed or an infinite loop has started,
+			       ;; return nil instead of infinite retry
+			       (if (or (not (open-stream-p stream))
+				       (> read-seq-count 1))
+				   (return nil))
+                               ;; Retry when I/O timeout error
+                               (go retry)))))
+           (setf read-seq-count 0)
            (when (= read-bytes 0)
              (return nil))
 
