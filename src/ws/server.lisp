@@ -77,7 +77,7 @@
       (unwind-protect
            (loop with stream = (socket-stream socket)
                  while (open-stream-p stream)
-                 for frame = (read-websocket-frame stream)
+                 for frame = (read-websocket-frame stream server)
                  while frame
                  do (funcall (read-callback socket) frame))
         (close-connection server)

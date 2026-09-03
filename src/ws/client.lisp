@@ -51,63 +51,83 @@
 (defmethod initialize-instance :after ((client client) &key)
   (setf (accept client) (generate-accept (key client))))
 
-(defun read-until-crlf*2 (stream)
-  (declare (optimize (speed 3)))
-  (with-fast-output (buf)
-    (tagbody
-     read-cr
-       (loop for byte of-type (or (unsigned-byte 8) null) = (read-byte stream nil nil)
-             if byte
-               do (fast-write-byte byte buf)
-             else
-               do (go eof)
-             until (= byte (char-code #\Return)))
+(defun read-until-crlf*2 (stream &key (max-header-size 65536))
+  (declare (optimize (speed 3))
+	   (fixnum max-header-size))
+  (let ((total-bytes 0))
+    (declare (fixnum total-bytes))
+    (with-fast-output (buf)
+      (tagbody
+       read-cr
+         (loop for byte of-type (or (unsigned-byte 8) null) = (read-byte stream nil nil)
+               if byte
+                 do (progn
+                      (incf total-bytes)
+                      (when (> total-bytes max-header-size)
+                        (error 'ws-error :format-control "HTTP handshake response exceeds maximum header size (~D bytes)"
+                                         :format-arguments (list max-header-size)))
+                      (fast-write-byte byte buf))
+               else
+                 do (go eof)
+               until (= byte (char-code #\Return)))
 
-     read-lf
-       (let ((next-byte (read-byte stream nil nil)))
-         (unless next-byte
-           (go eof))
-         (locally (declare (type (unsigned-byte 8) next-byte))
-           (cond
-             ((= next-byte (char-code #\Newline))
-              (fast-write-byte next-byte buf)
-              (go read-cr2))
-             ((= next-byte (char-code #\Return))
-              (fast-write-byte next-byte buf)
-              (go read-lf))
-             (T
-              (fast-write-byte next-byte buf)
-              (go read-cr)))))
+       read-lf
+         (let ((next-byte (read-byte stream nil nil)))
+           (unless next-byte
+             (go eof))
+           (incf total-bytes)
+           (when (> total-bytes max-header-size)
+             (error 'ws-error :format-control "HTTP handshake response exceeds maximum header size (~D bytes)"
+                              :format-arguments (list max-header-size)))
+           (locally (declare (type (unsigned-byte 8) next-byte))
+             (cond
+               ((= next-byte (char-code #\Newline))
+                (fast-write-byte next-byte buf)
+                (go read-cr2))
+               ((= next-byte (char-code #\Return))
+                (fast-write-byte next-byte buf)
+                (go read-lf))
+               (T
+                (fast-write-byte next-byte buf)
+                (go read-cr)))))
 
-     read-cr2
-       (let ((next-byte (read-byte stream nil nil)))
-         (unless next-byte
-           (go eof))
-         (locally (declare (type (unsigned-byte 8) next-byte))
-           (cond
-             ((= next-byte (char-code #\Return))
-              (fast-write-byte next-byte buf)
-              (go read-lf2))
-             (T
-              (fast-write-byte next-byte buf)
-              (go read-cr)))))
+       read-cr2
+         (let ((next-byte (read-byte stream nil nil)))
+           (unless next-byte
+             (go eof))
+           (incf total-bytes)
+           (when (> total-bytes max-header-size)
+             (error 'ws-error :format-control "HTTP handshake response exceeds maximum header size (~D bytes)"
+                              :format-arguments (list max-header-size)))
+           (locally (declare (type (unsigned-byte 8) next-byte))
+             (cond
+               ((= next-byte (char-code #\Return))
+                (fast-write-byte next-byte buf)
+                (go read-lf2))
+               (T
+                (fast-write-byte next-byte buf)
+                (go read-cr)))))
 
-     read-lf2
-       (let ((next-byte (read-byte stream nil nil)))
-         (unless next-byte
-           (go eof))
-         (locally (declare (type (unsigned-byte 8) next-byte))
-           (cond
-             ((= next-byte (char-code #\Newline))
-              (fast-write-byte next-byte buf))
-             ((= next-byte (char-code #\Return))
-              (fast-write-byte next-byte buf)
-              (go read-lf))
-             (T
-              (fast-write-byte next-byte buf)
-              (go read-cr)))))
+       read-lf2
+         (let ((next-byte (read-byte stream nil nil)))
+           (unless next-byte
+             (go eof))
+           (incf total-bytes)
+           (when (> total-bytes max-header-size)
+             (error 'ws-error :format-control "HTTP handshake response exceeds maximum header size (~D bytes)"
+                              :format-arguments (list max-header-size)))
+           (locally (declare (type (unsigned-byte 8) next-byte))
+             (cond
+               ((= next-byte (char-code #\Newline))
+                (fast-write-byte next-byte buf))
+               ((= next-byte (char-code #\Return))
+                (fast-write-byte next-byte buf)
+                (go read-lf))
+               (T
+                (fast-write-byte next-byte buf)
+                (go read-cr)))))
 
-     eof)))
+       eof))))
 
 (defmethod start-connection ((client client) &key (verify t) (ca-path nil))
   (unless (eq (ready-state client) :connecting)
@@ -185,7 +205,7 @@
             (bt2:make-thread
              (lambda ()
                (unwind-protect
-		    (loop for frame = (read-websocket-frame stream)
+		    (loop for frame = (read-websocket-frame stream client)
                           while frame
                           do (parse client frame))
                  (close-connection client)))

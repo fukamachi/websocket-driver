@@ -4,7 +4,8 @@
   (:import-from :fast-websocket
                 #:make-ws
                 #:ws-stage
-                #:make-parser)
+                #:make-parser
+                #:error-code)
   (:import-from :event-emitter
                 #:emit
                 #:event-emitter)
@@ -165,6 +166,7 @@
 (defgeneric close-connection (ws &optional reason code))
 
 (defmethod close-connection :around ((ws ws) &optional reason code)
+  (clrhash (ping-callbacks ws))
   (case (ready-state ws)
     (:connecting
      (setf (ready-state ws) :closed)
@@ -210,25 +212,32 @@
         when (and sym (typep condition sym))
         return t))
 
-(defun read-websocket-frame (stream)
+(defun read-websocket-frame (stream ws)
   (let ((buf (make-array 2 :element-type '(unsigned-byte 8)))
         (extended-buf (make-array 8 :element-type '(unsigned-byte 8)))
-        (read-seq-count 0))
+        (read-seq-count 0)
+        (timeout-count 0)
+        (max-consecutive-timeouts 20))
     (block nil
       (tagbody retry
          (let ((read-bytes (handler-case (read-sequence buf stream)
                              (error (e)
-                               (unless (timeout-error-p e)
-                                 (incf read-seq-count))
-                               ;; If the stream is already closed or an infinite loop has started,
-                               ;; return nil instead of infinite retry
-                               (when (or (not (open-stream-p stream))
-                                         (< 1 read-seq-count))
-                                 (return nil))
-                               ;; Retry when I/O timeout error
-                               (go retry)))))
-           (setf read-seq-count 0)
-           (when (= read-bytes 0)
+                               (cond
+                                 ((timeout-error-p e)
+                                  (incf timeout-count)
+                                  (when (or (not (open-stream-p stream))
+                                            (> timeout-count max-consecutive-timeouts))
+                                    (return nil))
+                                  (go retry))
+                                 (t
+                                  (incf read-seq-count)
+                                  (when (or (not (open-stream-p stream))
+                                            (< 1 read-seq-count))
+                                    (return nil))
+                                  (go retry)))))))
+           (setf read-seq-count 0
+                 timeout-count 0)
+           (when (< read-bytes 2)
              (return nil))
 
            (let ((maskp (plusp (ldb (byte 1 7) (aref buf 1))))
@@ -237,13 +246,23 @@
                ((<= 0 data-length 125))
                (t
                 (let ((end (if (= data-length 126) 2 8)))
-                  (read-sequence extended-buf stream :end end)
-                  (incf read-bytes end)
+                  (let ((ext-read (read-sequence extended-buf stream :end end)))
+                    (when (< ext-read end)
+                      (return nil))
+                    (incf read-bytes end))
                   (setf data-length
                         (loop with length = 0
                               for i from 0 below end
                               do (setf length (+ (ash length 8) (aref extended-buf i)))
                               finally (return length))))))
+             (let ((max-allowed (min (max-length ws)
+                                     (ash array-dimension-limit -2))))
+               (when (> data-length max-allowed)
+                 (send-close-frame ws
+                                   (format nil "frame payload too large (~D bytes; max ~D)"
+                                           data-length max-allowed)
+                                   (error-code :too-large))
+                 (return nil)))
              (when maskp
                (incf data-length 4))
              (let ((data (make-array (+ read-bytes data-length) :element-type '(unsigned-byte 8))))
@@ -251,7 +270,9 @@
                (unless (= read-bytes 2)
                  (replace data extended-buf :start1 2 :end2 (- read-bytes 2)))
                (handler-case
-                   (read-sequence data stream :start read-bytes)
+                   (let ((payload-read (read-sequence data stream :start read-bytes)))
+                     (when (< payload-read (+ read-bytes data-length))
+                       (return nil)))
                  (error ()
                    (return nil)))
                (return data))))))))
